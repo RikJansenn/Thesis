@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 import matplotlib
 matplotlib.use('tkagg')
+import pycochleagram.cochleagram as cgram
 
 import reservoirpy as rpy
 from reservoirpy.nodes import Reservoir
@@ -20,10 +21,11 @@ import librosa
 import os
 
 matplotlib.use('tkagg')
-folder_path = "C:/Users/rikki/Documents/Uni/Thesis/Dataset/data/01"
-rpy.set_seed(44)
+# folder_path = "C:/Users/rikki/Documents/Uni/Thesis/Dataset/data/01"
+folder_path = "C:/Users/rikki/Uni/data/01"
+rpy.set_seed(42)
 
-IP = True
+IP = False
 TIMESTEPS_IP = 1000
 
 # Load audio and convert to spectrograms, and store target labels
@@ -36,21 +38,51 @@ def load_training_data(folder_path):
             audio, sr = librosa.load(file_path, sr=None)
 
             # Create Spectrogram
-            S = np.abs(librosa.stft(audio))
-            S = S.T
+            S = create_spectrogram(audio, sr)
 
             samples.append(S)
             digit = int(filename[0])
             targets.append(np.eye(10)[digit].reshape(1, -1))
 
-            print(S.shape)
-
     return samples, targets
+
+def create_spectrogram(audio, orig_sr):
+    sr = 8000
+    fixed_length = 1
+    n_fft = 256
+    hop_length = 128
+    eps = 1e-6
+
+    # Resample audio
+    if orig_sr != sr:
+        audio = librosa.resample(audio, orig_sr=orig_sr, target_sr=sr)
+
+    # Trim/pad to fixed length
+    target_len = int(sr * fixed_length)
+    if len(audio) < target_len:
+        # pad center (or end) with zeros
+        pad_len = target_len - len(audio)
+        audio = np.pad(audio, (0, pad_len), mode='constant')
+    else:
+        audio = audio[:target_len]
+
+    # Create Spectrogram
+    S = np.abs(librosa.stft(y=audio, n_fft=n_fft, hop_length=hop_length)).T
+
+    # Normalize Spectrogram?
+    S = S.astype(np.float32)
+    mean = S.mean()
+    std = S.std() + eps
+    S = (S - mean) / std
+
+    print(S.shape)
+
+    return S
 
 # Create model
 def create_model():
     if IP:
-        reservoir = IPReservoir(1000, mu=0.0, sigma=0.3, sr=0.95, activation="tanh", epochs=10)
+        reservoir = IPReservoir(500, mu=0.0, sigma=0.3, sr=0.95, activation="tanh", epochs=10)
     else:
         reservoir = Reservoir(500, lr=0.5, sr=0.9)
     readout = Ridge(ridge=1e-7 )
