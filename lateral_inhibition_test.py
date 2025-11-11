@@ -3,8 +3,6 @@ import random
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 import matplotlib
-matplotlib.use('tkagg')
-import pycochleagram.cochleagram as cgram
 
 import reservoirpy as rpy
 from reservoirpy.nodes import Reservoir
@@ -22,12 +20,8 @@ import os
 
 matplotlib.use('tkagg')
 # folder_path = "C:/Users/rikki/Documents/Uni/Thesis/Dataset/data/01"
-folder_path = "C:/Users/rikki/Uni/data/01"
+folder_path = "/data/01"
 rpy.set_seed(42)
-
-IP = True
-TIMESTEPS_IP = 1000
-
 # Load audio and convert to spectrograms, and store target labels
 def load_training_data(folder_path):
     samples = []
@@ -81,25 +75,9 @@ def create_spectrogram(audio, orig_sr):
 
 # Create model
 def create_model():
-    if IP:
-        reservoir = IPReservoir(500, mu=0.0, sigma=0.9, sr=0.9, activation="tanh", epochs=10)
-    else:
-        reservoir = Reservoir(500, lr=0.5, sr=0.9)
+    reservoir = Reservoir(500, lr=0.5, sr=0.9)
     readout = Ridge(ridge=1e-7 )
     return reservoir, readout
-
-def pretrain_model(reservoir, X):
-    stream = []
-    total = 0
-
-    while total < TIMESTEPS_IP:
-        spec = random.choice(X)
-        stream.append(spec)
-        total += spec.shape[0]
-    stream = np.concatenate(stream, axis=0)
-
-    reservoir.fit(stream, warmup=100)
-    return reservoir
 
 def train_model(X, Y, reservoir, readout):
     # Run spectrogram through reservoir and collect final state
@@ -138,14 +116,6 @@ if __name__ == "__main__":
     )
 
     reservoir, readout = create_model()
-
-    if IP:
-        states_before = reservoir.run(X_test[0])
-        pretrain_model(reservoir, X)
-        states_after = reservoir.run(X_test[0])
-
-        states_before = np.vstack(states_before)
-        states_after = np.vstack(states_after)
 
     readout, final_states = train_model(X_train, Y_train, reservoir, readout)
     test_model(reservoir, readout, X_test, Y_test)

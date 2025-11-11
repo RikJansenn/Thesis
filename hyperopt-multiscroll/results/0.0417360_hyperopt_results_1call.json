@@ -1,0 +1,21 @@
+{
+  "returned_dict": {
+    "loss": 0.041735985083795,
+    "r2": 0.43097971447570504,
+    "status": "ok",
+    "start_time": 1762782881.258645,
+    "duration": 6.120630502700806
+  },
+  "current_params": {
+    "N": 236.0,
+    "epochs": 5,
+    "input_scaling": 1.0,
+    "learning_rate": 0.0005,
+    "lr": 0.32990593409366,
+    "mu": 0.0,
+    "ridge": 1e-06,
+    "seed": 1234,
+    "sigma": 0.3,
+    "sr": 0.18658183701753264
+  }
+}
