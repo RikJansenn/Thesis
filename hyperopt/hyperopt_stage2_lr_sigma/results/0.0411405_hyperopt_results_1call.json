@@ -1,0 +1,26 @@
+{
+  "returned_dict": {
+    "loss": 0.0411405378813976,
+    "r2": 0.36123605646064266,
+    "kl_mean": 8.063089621299337,
+    "kl_std": 5.026181834373328,
+    "entropy_mean": -0.6816000749585822,
+    "entropy_std": 0.3651881787391648,
+    "status": "ok",
+    "start_time": 1762966763.0693238,
+    "duration": 66.01820039749146
+  },
+  "current_params": {
+    "N": 925,
+    "epochs": 2,
+    "input_connectivity": 0.73,
+    "input_scaling": 1.0,
+    "learning_rate": 0.0005,
+    "lr": 0.9619137898769105,
+    "mu": 0.0,
+    "ridge": 1e-06,
+    "seed": 1234,
+    "sigma": 0.1830575562493496,
+    "sr": 0.73
+  }
+}

@@ -6,6 +6,7 @@ import reservoirpy as rpy
 from reservoirpy.nodes import Reservoir, IPReservoir, Ridge
 from reservoirpy.datasets import narma
 from scipy.stats import pearsonr
+from scipy.stats import entropy, norm
 import numpy as np
 import matplotlib
 import librosa
@@ -16,7 +17,7 @@ rpy.set_seed(52)
 
 # Create model
 def create_model():
-    reservoir = IPReservoir(500, mu=0.0, sigma=0.3, sr=0.9, activation="tanh", epochs=5)
+    reservoir = IPReservoir(500, mu=0.0, sigma=0.3, sr=0.9, activation="tanh", epochs=3)
     # reservoir = Reservoir(units=500, sr=0.9, lr=0.2, input_scaling=0.5)
     readout = Ridge(ridge=1e-6, input_dim=500)
 
@@ -122,37 +123,78 @@ def compare_ip_effect():
     print(f"Total Memory Capacity (no IP): {mc_plain:.3f}")
     print(f"Total Memory Capacity (with IP): {mc_ip:.3f}")
 
+def kl_divergence_and_entropy(observed_samples, mu, sigma):
+    """
+    Compute both the KL divergence between the observed activation
+    distribution and a target Gaussian N(mu, sigma^2), and the
+    Shannon entropy of the observed distribution.
+    """
+    # Estimate observed PDF via KDE
+    kde = gaussian_kde(observed_samples)
+    x = np.linspace(min(-3, observed_samples.min()), max(3, observed_samples.max()), 500)
+    p = kde(x)
+    q = norm.pdf(x, loc=mu, scale=sigma)
+
+    # Normalize both PDFs to ensure proper distributions
+    p /= np.trapezoid(p, x)
+    q /= np.trapezoid(q, x)
+
+    # Compute entropy (Shannon)
+    epsilon = 1e-12
+    entropy = -np.trapezoid(p * np.log(p + epsilon), x)
+
+    # Compute KL divergence KL(P || Q)
+    kl = np.trapezoid(p * np.log((p + epsilon) / (q + epsilon)), x)
+
+    return kl, entropy
 
 if __name__ == "__main__":
     data_len = 5000
     train_len = 4000
+    mses = []
+    entropies = []
+    kls = []
 
-    # Create model and datasets
-    reservoir, readout, esn = create_model()
-    u, y = narma(data_len)
-    u = u[-len(y):]
+    for i in range(10):
+        # Create model and datasets
+        reservoir, readout, esn = create_model()
+        u, y = narma(data_len)
+        u = u[-len(y):]
+
+        # Create train and test sets
+        u_train, y_train = u[:train_len], y[:train_len]
+        u_test, y_test = u[train_len:], y[train_len:]
 
 
-    # Do Intrinsic Plasticity stuff
+        # Do Intrinsic Plasticity stuff
+        states_before = reservoir.run(u)
+        reservoir = reservoir.fit(u_train, warmup=100)
+        states_after = reservoir.run(u)
+        print("hey")
+        # #kl1 = kl_divergence(states_before.flatten(), mu=reservoir.mu, sigma=reservoir.sigma)
+        kl, entropy = kl_divergence_and_entropy(states_after.flatten(), mu=reservoir.mu, sigma=reservoir.sigma)
 
-    # Create train and test sets
-    u_train, y_train = u[:train_len], y[:train_len]
-    u_test, y_test = u[train_len:], y[train_len:]
+        # #print("KL divergence:", kl1)
+        print("KL divergence:", kl)
+        print("Entropy:", entropy)
 
+        # Train readout layer
+        X_train = reservoir.run(u_train)
+        readout = readout.fit(X_train, y_train)
 
-    states_before = reservoir.run(u)
-    reservoir = reservoir.fit(u_train, warmup=100)
-    states_after = reservoir.run(u)
+        # Test and evaluate model
+        reservoir.reset()
+        X_test = reservoir.run(u_test)
+        y_pred = readout.run(X_test)
 
-    # Train readout layer
-    X_train = reservoir.run(u_train)
-    readout = readout.fit(X_train, y_train)
+        # Evaluate
+        mse = mean_squared_error(y_test, y_pred)
+        print("Test MSE:", mse)
 
-    # Test and evaluate model
-    reservoir.reset()
-    X_test = reservoir.run(u_test)
-    y_pred = readout.run(X_test)
+        mses.append(mse)
+        entropies.append(entropy)
+        kls.append(kl)
 
-    # Evaluate
-    mse = mean_squared_error(y_test, y_pred)
-    print("Test MSE:", mse)
+    print("Average MSE over 10 runs:", np.mean(mses))
+    print("Average Entropy over 10 runs:", np.mean(entropies))
+    print("Average KL divergence over 10 runs:", np.mean(kls))

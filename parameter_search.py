@@ -7,26 +7,28 @@ import json
 from reservoirpy.datasets import mackey_glass
 from reservoirpy.datasets import narma
 import random
+from scipy.stats import gaussian_kde, norm
 
 data_len = 5000
 train_len = 4000
 
 hyperopt_config = {
-    "exp": "hyperopt-multiscroll",    # the experimentation name
-    "hp_max_evals": 200,              # the number of different sets of parameters hyperopt has to try
+    "exp": "hyperopt_stage1_learning_rates",    # the experimentation name
+    "hp_max_evals": 100,              # the number of different sets of parameters hyperopt has to try
     "hp_method": "random",            # the method used by hyperopt to choose those sets (see below)
     "seed": 42,                       # the random state seed, to ensure reproducibility
     "instances_per_trial": 5,         # how many random ESN will be tried with each sets of parameters
     "hp_space": {                     # what are the ranges of parameters explored
-        "N": ["qloguniform", 100, 1000, 1],
-        "sr": ["loguniform", 1e-2, 10],
-        "lr": ["loguniform", 1e-3, 1],
+        "N": ["choice", 1095],
+        "sr": ["choice", 1.213],
+        "lr": ["choice", 0.954],
         "mu": ["choice", 0.0],
-        "sigma": ["choice", 0.3],
-        "learning_rate": ["choice", 5e-4],
-        "epochs": ["choice", 5],
+        "sigma": ["choice", 0.173],
+        "learning_rate": ["loguniform", 1e-6, 1e-1],
+        "epochs": ["choice", 2],
         "input_scaling": ["choice", 1.0],
-        "ridge": ["choice", 1e-6],
+        "input_connectivity": ["choice", 0.025],
+        "ridge": ["loguniform", 1e-8, 1e1],
         "seed": ["choice", 1234]
     }
 }
@@ -36,7 +38,7 @@ hyperopt_config = {
 with open(f"{hyperopt_config['exp']}.config.json", "w+") as f:
     json.dump(hyperopt_config, f)
 
-def objective(dataset, config, *, input_scaling, N, sr, lr, ridge, mu, sigma, learning_rate, epochs, seed):
+def objective(dataset, config, *, input_scaling, input_connectivity, N, sr, lr, ridge, mu, sigma, learning_rate, epochs, seed):
     # This step may vary depending on what you put inside 'dataset'
     x_train, x_test, y_train, y_test = dataset
 
@@ -49,7 +51,7 @@ def objective(dataset, config, *, input_scaling, N, sr, lr, ridge, mu, sigma, le
     # due to initialization.
     variable_seed = seed
 
-    losses = []; r2s = [];
+    losses = []; r2s = []; kl_values = []; entropy_values = []
     for n in range(instances):
         # Build your model given the input parameters
         reservoir = IPReservoir(
@@ -61,21 +63,32 @@ def objective(dataset, config, *, input_scaling, N, sr, lr, ridge, mu, sigma, le
             learning_rate=learning_rate,
             epochs=epochs,
             input_scaling=input_scaling,
+            input_connectivity=input_connectivity,
+            activation="tanh",
             seed=variable_seed
         )
         readout = Ridge(ridge=ridge, input_dim=N)
 
         # Train your model and test your model.
         # Apply IP
+        print("Applying IP...")
         reservoir.fit(x_train, warmup=100)
 
         # Train readout layer
+        print("Training...")
         x_train = reservoir.run(x_train)
         readout.fit(x_train, y_train)
 
         x_test = reservoir.run(x_test)
         predictions = readout.run(x_test)
 
+        # Compute KL divergence and entropy on activations
+        print("Computing KL divergence and entropy...")
+        # flat_states = x_train.flatten()
+        # kl, entropy = kl_divergence_and_entropy_fast(flat_states, mu=reservoir.mu, sigma=reservoir.sigma)
+
+        # Metrics to be tracked
+        # print("KL Divergence:", kl, "Entropy:", entropy)
         loss = nrmse(y_test, predictions, norm_value=np.ptp(x_train))
         r2 = rsquare(y_test, predictions)
 
@@ -84,10 +97,38 @@ def objective(dataset, config, *, input_scaling, N, sr, lr, ridge, mu, sigma, le
 
         losses.append(loss)
         r2s.append(r2)
+        # kl_values.append(kl)
+        # entropy_values.append(entropy)
 
     # Return a dictionnary of metrics. The 'loss' key is mandatory when
     # using hyperopt.
-    return {'loss': np.mean(losses), 'r2': np.mean(r2s)}
+
+    return {
+        'loss': np.mean(losses),
+        'r2': np.mean(r2s)
+        # 'kl_mean': np.mean(kl_values),
+        # 'kl_std': np.std(kl_values),
+        # 'entropy_mean': np.mean(entropy_values),
+        # 'entropy_std': np.std(entropy_values)
+    }
+
+def kl_divergence_and_entropy_fast(observed_samples, mu, sigma, bins=200):
+    x_min = min(-3, observed_samples.min())
+    x_max = max(3, observed_samples.max())
+    p_hist, bin_edges = np.histogram(observed_samples, bins=bins, range=(x_min, x_max), density=True)
+    x = 0.5 * (bin_edges[:-1] + bin_edges[1:])  # bin centers
+    q = norm.pdf(x, loc=mu, scale=sigma)
+
+    # Normalize PDFs
+    dx = x[1] - x[0]
+    p_hist /= np.trapezoid(p_hist, x)
+    q /= np.trapezoid(q, x)
+
+    epsilon = 1e-12
+    entropy = -np.trapezoid(p_hist * np.log(p_hist + epsilon), x)
+    kl = np.trapezoid(p_hist * np.log((p_hist + epsilon) / (q + epsilon)), x)
+
+    return kl, entropy
 
 def create_data():
     X, Y = narma(data_len)
