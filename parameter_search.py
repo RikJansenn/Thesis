@@ -13,22 +13,22 @@ data_len = 5000
 train_len = 4000
 
 hyperopt_config = {
-    "exp": "hyperopt_stage1_learning_rates",    # the experimentation name
+    "exp": "hyperopt_ips",    # the experimentation name
     "hp_max_evals": 100,              # the number of different sets of parameters hyperopt has to try
     "hp_method": "random",            # the method used by hyperopt to choose those sets (see below)
     "seed": 42,                       # the random state seed, to ensure reproducibility
     "instances_per_trial": 5,         # how many random ESN will be tried with each sets of parameters
     "hp_space": {                     # what are the ranges of parameters explored
-        "N": ["choice", 1095],
-        "sr": ["choice", 1.213],
-        "lr": ["choice", 0.954],
+        "N": ["choice", 925],
+        "sr": ["choice", 0.73],
+        "lr": ["choice", 0.95],
         "mu": ["choice", 0.0],
-        "sigma": ["choice", 0.173],
+        "sigma": ["loguniform", 0.05, 1],
         "learning_rate": ["loguniform", 1e-6, 1e-1],
         "epochs": ["choice", 2],
         "input_scaling": ["choice", 1.0],
-        "input_connectivity": ["choice", 0.025],
-        "ridge": ["loguniform", 1e-8, 1e1],
+        "input_connectivity": ["choice", 0.73],
+        "ridge": ["choice", 1e-6],
         "seed": ["choice", 1234]
     }
 }
@@ -84,8 +84,8 @@ def objective(dataset, config, *, input_scaling, input_connectivity, N, sr, lr, 
 
         # Compute KL divergence and entropy on activations
         print("Computing KL divergence and entropy...")
-        # flat_states = x_train.flatten()
-        # kl, entropy = kl_divergence_and_entropy_fast(flat_states, mu=reservoir.mu, sigma=reservoir.sigma)
+        flat_states = x_train.flatten()
+        kl, entropy = kl_divergence_and_entropy_fast(flat_states, mu=reservoir.mu, sigma=reservoir.sigma)
 
         # Metrics to be tracked
         # print("KL Divergence:", kl, "Entropy:", entropy)
@@ -97,19 +97,19 @@ def objective(dataset, config, *, input_scaling, input_connectivity, N, sr, lr, 
 
         losses.append(loss)
         r2s.append(r2)
-        # kl_values.append(kl)
-        # entropy_values.append(entropy)
+        kl_values.append(kl)
+        entropy_values.append(entropy)
 
     # Return a dictionnary of metrics. The 'loss' key is mandatory when
     # using hyperopt.
 
     return {
         'loss': np.mean(losses),
-        'r2': np.mean(r2s)
-        # 'kl_mean': np.mean(kl_values),
-        # 'kl_std': np.std(kl_values),
-        # 'entropy_mean': np.mean(entropy_values),
-        # 'entropy_std': np.std(entropy_values)
+        'r2': np.mean(r2s),
+        'kl_mean': np.mean(kl_values),
+        'kl_std': np.std(kl_values),
+        'entropy_mean': np.mean(entropy_values),
+        'entropy_std': np.std(entropy_values)
     }
 
 def kl_divergence_and_entropy_fast(observed_samples, mu, sigma, bins=200):
