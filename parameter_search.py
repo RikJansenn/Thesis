@@ -14,12 +14,12 @@ train_len = 4000
 
 hyperopt_config = {
     "exp": "hyperopt_ips",    # the experimentation name
-    "hp_max_evals": 100,              # the number of different sets of parameters hyperopt has to try
+    "hp_max_evals": 200,              # the number of different sets of parameters hyperopt has to try
     "hp_method": "random",            # the method used by hyperopt to choose those sets (see below)
     "seed": 42,                       # the random state seed, to ensure reproducibility
     "instances_per_trial": 5,         # how many random ESN will be tried with each sets of parameters
     "hp_space": {                     # what are the ranges of parameters explored
-        "N": ["choice", 925],
+        "N": ["loguniform", 50, 1000],
         "sr": ["choice", 0.73],
         "lr": ["choice", 0.95],
         "mu": ["choice", 0.0],
