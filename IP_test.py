@@ -27,7 +27,7 @@ def bounded(dist, x, mu, sigma, a, b):
     return num / den
 
 def get_KL_divergence_and_entropy(states, sigma):
-    # Estimated probability distribution of state activation
+    # Get all state activations and their min and max
     all_activations = states.flatten()
     x_min = all_activations.min()
     x_max = all_activations.max()
@@ -84,10 +84,12 @@ if __name__ == "__main__":
     results = []
 
     # Parameters to test
-    N_values = np.arange(400, 1001, 100)    # 7
-    lr_values = np.arange(0.85, 1, 0.03)    # 6
-    sr_values = np.arange(0.8, 1.21, 0.1)   # 5
+    N_values = np.arange(400, 1001, 100)        # 7
+    lr_values = np.arange(0.85, 1.01, 0.03)     # 6
+    sr_values = np.arange(0.8, 1.21, 0.1)       # 5
     sigma = 0.1
+
+    print(lr_values)
 
     # Create narma series
     _, X = narma(data_len)
@@ -111,11 +113,14 @@ if __name__ == "__main__":
     #     })
 
     # Loop through all parameter combinations and test each 100 times
+
+    set = 1
+
     for N in N_values:
         for lr in lr_values:
+            lr = round(lr, 2)
             for sr in sr_values:
-                kls = []
-                entropies = []
+                print(set)
                 for i in range(iterations):
                     # Create model
                     reservoir = create_model(N, lr, sr, sigma)
@@ -128,26 +133,16 @@ if __name__ == "__main__":
 
                     # Get the KL-divergence and entropy for neuron activations
                     kl, ent = get_KL_divergence_and_entropy(states, sigma)
-                    kls.append(kl)
-                    entropies.append(ent)
 
-                # Compute means and stds for parameter set and save result
-                kl_mean = np.mean(kls)
-                kl_std = np.std(kls)
-                ent_mean = np.mean(entropies)
-                ent_std = np.std(entropies)
-
-                results.append({
-                    "N": N,
-                    "lr": lr,
-                    "sr": sr,
-                    "KL_mean": kl_mean,
-                    "KL_std": kl_std,
-                    "entropy_mean": ent_mean,
-                    "entropy_std": ent_std
-                })
-
-                print(kl_mean)
+                    results.append({
+                        "N": N,
+                        "lr": lr,
+                        "sr": sr,
+                        "set_n": set,
+                        "KL": kl,
+                        "entropy": ent,
+                    })
+                set += 1
 
     df = pd.DataFrame(results)
-    df.to_csv(f"results_parameters_ip_{iterations}_iter.csv", index=False)
+    df.to_csv(f"results_parameters_ip_{iterations}_iter_v2.csv", index=False)

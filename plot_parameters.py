@@ -11,7 +11,7 @@ def plot_parameters_against_measure(measure):
 
     sns.boxplot(data=data, x="N",  y=measure, ax=axes[0])
     sns.stripplot(data=data, x="N",  y=measure, ax=axes[0], color="black", alpha=0.5, jitter=True)
-    axes[0].set_title(f"{measure}against number of neurons")
+    axes[0].set_title(f"{measure} against number of neurons")
 
     sns.boxplot(data=data, x="sr", y=measure, ax=axes[1])
     sns.stripplot(data=data, x="sr", y=measure, ax=axes[1], color="black", alpha=0.5, jitter=True)
@@ -25,10 +25,6 @@ def plot_parameters_against_measure(measure):
     plt.savefig(f"plots/{measure}_vs_parameters")
     plt.show()
 
-    # sns.pairplot(data, x_vars=["N", "sr", "lr"], y_vars=measure, kind="reg", height=4)
-    # plt.savefig(f"plots/{measure}_vs_parameters_v2")
-    # plt.show()
-
 def plot_correlation(data, param1, param2, measure):
     x = data[param1] + np.random.normal(0, 0.04*data[param1].std(), size=len(data))  # jitter
     y = data[param2] + np.random.normal(0, 0.04*data[param2].std(), size=len(data))  # jitter
@@ -39,7 +35,7 @@ def plot_correlation(data, param1, param2, measure):
     plt.ylabel(param2)
     plt.title(f"{param1} vs {param2}, colored by {measure}")
     plt.colorbar(sc, label=measure)
-    plt.savefig(f"plots/{param1}_vs_{param2}_{measure}")
+    plt.savefig(f"plots/{param1}_vs_{param2}")
     plt.show()
 
 
@@ -56,21 +52,36 @@ def get_parameters_under_threshold(threshold):
     return params
 
 if __name__ == "__main__":
-    data = pd.read_csv("results_parameters_ip_100_iter.csv")
+    data = pd.read_csv("results_parameters_ip_100_iter_v2.csv")
     plot = True
+
+    # Convert the dataframe into the dataframe version with just the mean and std measures per parameter combo
+    # since that is what this code was written for
+    param_cols = ["N", "sr", "lr"]
+    data = (
+        data
+        .groupby(param_cols)
+        .agg(
+            KL_mean=("KL", "mean"),
+            KL_std=("KL", "std"),
+            entropy_mean=("entropy", "mean"),
+            entropy_std=("entropy", "std")
+        )
+        .reset_index()
+    )
+
+    print(data.head)
 
     if plot:
         # Plot parameters vs means and stds
-        # measures = {"KL_mean", "entropy_mean", "KL_std", "entropy_std"}
-        # for measure in measures:
-        #     plot_parameters_against_measure(measure)
+        measures = {"KL_mean", "entropy_mean", "KL_std", "entropy_std"}
+        for measure in measures:
+            plot_parameters_against_measure(measure)
 
         # Plot correlations between parameters
-        params = {"N", "lr", "sr"}
-        for param1 in params:
-            for param2 in params:
-                if param1 != param2:
-                    plot_correlation(data, param1, param2, "entropy_mean")
+        combos = {("N", "sr"), ("N", "lr"), ("lr", "sr")}
+        for combo in combos:
+            plot_correlation(data, combo[0], combo[1], "KL_mean")
 
     # best_params = get_n_best_parameters(50)
     best_params = get_parameters_under_threshold(0.1)
@@ -79,15 +90,3 @@ if __name__ == "__main__":
     for col in ["N", "sr", "lr"]:
         coef, p = spearmanr(data[col], data["KL_mean"])
         print(f"Spearman correlation {col} vs KL_mean: {coef:.3f}, p-value: {p:.3e}")
-
-    # plt.figure(figsize=(8,6))
-    # plt.hist(data['KL_mean'], bins=60)
-    # plt.show()
-
-    # plt.figure(figsize=(8, 6))
-    # plt.scatter(data['entropy_mean'], data['entropy_std'])
-    # plt.xlabel("entropy_std mean")
-    # plt.ylabel("entropy_std std")
-    # plt.title("entropy_std mean vs entropy_std")
-    # plt.savefig("plots/entropy_mean_vs_entropy_std")
-    # plt.show()
