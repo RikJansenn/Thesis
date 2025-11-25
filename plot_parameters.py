@@ -39,7 +39,7 @@ def plot_correlation(data, param1, param2, measure):
     plt.ylabel(param2)
     plt.title(f"{param1} vs {param2}, colored by {measure}")
     plt.colorbar(sc, label=measure)
-    plt.savefig(f"plots/{param1}_vs_{param2}")
+    plt.savefig(f"plots/{param1}_vs_{param2}_{measure}")
     plt.show()
 
 
@@ -57,20 +57,20 @@ def get_parameters_under_threshold(threshold):
 
 if __name__ == "__main__":
     data = pd.read_csv("results_parameters_ip_100_iter.csv")
-    plot = False
+    plot = True
 
     if plot:
         # Plot parameters vs means and stds
-        measures = {"KL_mean", "entropy_mean", "KL_std", "entropy_std"}
-        for measure in measures:
-            plot_parameters_against_measure(measure)
+        # measures = {"KL_mean", "entropy_mean", "KL_std", "entropy_std"}
+        # for measure in measures:
+        #     plot_parameters_against_measure(measure)
 
         # Plot correlations between parameters
         params = {"N", "lr", "sr"}
         for param1 in params:
             for param2 in params:
                 if param1 != param2:
-                    plot_correlation(data, param1, param2, "KL_mean")
+                    plot_correlation(data, param1, param2, "entropy_mean")
 
     # best_params = get_n_best_parameters(50)
     best_params = get_parameters_under_threshold(0.1)
