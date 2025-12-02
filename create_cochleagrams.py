@@ -1,5 +1,4 @@
-import matplotlib
-import pycochleagram.cochleagram as cgram
-matplotlib.use('tkagg')
+import pycochleagram
+import pycochleagram as cgram
 
-print("Test")
+print("Pycochleagram imported correctly!")

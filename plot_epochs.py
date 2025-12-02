@@ -5,7 +5,7 @@ import pandas as pd
 
 matplotlib.use('TkAgg')
 
-data = pd.read_csv("results_epochs_ip_20_iter.csv")
+data = pd.read_csv("csvs/results_epochs_ip_20_iter.csv")
 
 plt.figure(figsize=(8, 6))
 plt.plot(data['epochs'], data['KL_mean'], label="KL Divergence")

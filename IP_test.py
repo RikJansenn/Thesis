@@ -68,6 +68,7 @@ def plot_pdf(states, sigma):
     ax1.set_xlabel("Reservoir activations")
     ax1.set_ylabel("Probability density")
     plt.legend()
+    plt.savefig("Activations")
     plt.show()
 
 
@@ -79,7 +80,7 @@ def create_model(N, lr, sr, sigma, epochs=4):
 
 if __name__ == "__main__":
     data_len = 1000
-    iterations = 100
+    iterations = 1
 
     results = []
 
@@ -123,13 +124,16 @@ if __name__ == "__main__":
                 print(set)
                 for i in range(iterations):
                     # Create model
-                    reservoir = create_model(N, lr, sr, sigma)
+                    reservoir = create_model(600, 1, 0.8, sigma)
 
+                    states_before = reservoir.run(X[100:])
                     # Apply intrinsic plasticity
                     _ = reservoir.fit(X, warmup=100)
-
                     # Get activations
                     states = reservoir.run(X[100:])
+
+                    plot_pdf(states_before, sigma)
+                    plot_pdf(states, sigma)
 
                     # Get the KL-divergence and entropy for neuron activations
                     kl, ent = get_KL_divergence_and_entropy(states, sigma)

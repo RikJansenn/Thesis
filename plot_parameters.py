@@ -4,9 +4,16 @@ import matplotlib
 import pandas as pd
 import numpy as np
 from scipy.stats import spearmanr
+
+# Only here because otherwise matplotlib doesn't work for me
 matplotlib.use("TkAgg")
 
 def plot_parameters_against_measure(measure):
+    """
+    Plot the individual parameters against given measure (e.g. mean KL divergence)
+
+    :param measure: which measure to plot against
+    """
     fig, axes = plt.subplots(1, 3, figsize=(18, 6), sharey=True)
 
     sns.boxplot(data=data, x="N",  y=measure, ax=axes[0])
@@ -26,6 +33,14 @@ def plot_parameters_against_measure(measure):
     plt.show()
 
 def plot_correlation(data, param1, param2, measure):
+    """
+    Plot the correlation between parameters against given measure (e.g. mean KL divergence)
+
+    :param data: dataframe with parameter and measure information
+    :param param1: first parameter to plot
+    :param param2: second parameter to plot
+    :param measure: which measure to plot parameters against
+    """
     x = data[param1] + np.random.normal(0, 0.04*data[param1].std(), size=len(data))  # jitter
     y = data[param2] + np.random.normal(0, 0.04*data[param2].std(), size=len(data))  # jitter
 
@@ -38,21 +53,20 @@ def plot_correlation(data, param1, param2, measure):
     plt.savefig(f"plots/{param1}_vs_{param2}")
     plt.show()
 
-
-def get_n_best_parameters(amount):
-    best = data.nsmallest(amount, "KL_mean")
-    best_params = best[["N", "sr", "lr", "KL_mean"]]
-
-    return best_params
-
 def get_parameters_under_threshold(threshold):
+    """
+    Get parameter sets resulting in KL mean under a given threshold
+
+    :param threshold: threshold of KL mean
+    :return: sorted parameter sets and their KL mean
+    """
     params = data[data["KL_mean"] < threshold]
     params = params[["N", "sr", "lr", "KL_mean"]].sort_values("KL_mean")
 
     return params
 
 if __name__ == "__main__":
-    data = pd.read_csv("results_parameters_ip_100_iter_v2.csv")
+    data = pd.read_csv("csvs/results_parameters_ip_100_iter_v2.csv")
     plot = True
 
     # Convert the dataframe into the dataframe version with just the mean and std measures per parameter combo
@@ -70,8 +84,6 @@ if __name__ == "__main__":
         .reset_index()
     )
 
-    print(data.head)
-
     if plot:
         # Plot parameters vs means and stds
         measures = {"KL_mean", "entropy_mean", "KL_std", "entropy_std"}
@@ -83,10 +95,5 @@ if __name__ == "__main__":
         for combo in combos:
             plot_correlation(data, combo[0], combo[1], "KL_mean")
 
-    # best_params = get_n_best_parameters(50)
     best_params = get_parameters_under_threshold(0.1)
     print(best_params)
-
-    for col in ["N", "sr", "lr"]:
-        coef, p = spearmanr(data[col], data["KL_mean"])
-        print(f"Spearman correlation {col} vs KL_mean: {coef:.3f}, p-value: {p:.3e}")

@@ -1,45 +1,61 @@
-import random
-import matplotlib.pyplot as plt
 import reservoirpy as rpy
 from reservoirpy.nodes import Reservoir
 from reservoirpy.nodes import IPReservoir
 from reservoirpy.nodes import Ridge
 from reservoirpy.nodes import Input
-from reservoirpy.datasets import narma
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from scipy.stats import norm
+from scipy.stats import norm, mode
+
+from utils import plot_pdf, plot_waveform, plot_spectrogram, plot_weights
+from biological_constraints import apply_ip, create_tonotopic_mapping
 
 import numpy as np
-import matplotlib
 import librosa
 import os
 
-matplotlib.use('tkagg')
-folder_path = "C:/Users/rikki/Documents/Uni/Thesis/Dataset/data/01"
-# folder_path = "C:/Users/rikki/Uni/data/01"
+# folder_path = "C:/Users/rikki/Documents/Uni/Thesis/Dataset/data/01"
+folder_path = "C:/Users/rikki/Uni/data/01"
 
 IP = True
+TONOTOPIC = False
 
-# Load audio and convert to spectrograms, and store target labels
 def load_training_data(folder_path):
     samples = []
     targets = []
+
+    # Create label for silence
+    silence_label = np.zeros(11)
+    silence_label[10] = 1
+
+    test = True
 
     for filename in os.listdir(folder_path):
         if filename.lower().endswith(".wav"):
             file_path = os.path.join(folder_path, filename)
             audio, sr = librosa.load(file_path, sr=None)
 
-            # Create Spectrogram
+            # Create and store spectrogram
             S = create_spectrogram(audio, sr)
-
             samples.append(S)
+
+            # Create one-hot vector representing digit
             digit = int(filename[0])
-            targets.append(np.eye(10)[digit].reshape(1, -1))
+            label = np.eye(11)[digit].reshape(1, -1)
+
+            # Create silence and digit labels per timestep
+            time_steps = S.shape[0]
+            labels_expanded = np.zeros((time_steps, 11))
+            for t in range(time_steps):
+                if np.all(S[t] == 0):
+                    labels_expanded[t] = silence_label
+                else:
+                    labels_expanded[t] = label
+
+            # Append final target array
+            targets.append(labels_expanded)
 
     return samples, targets
-
 
 def create_spectrogram(audio, orig_sr):
     # Length to pad/trim to
@@ -51,13 +67,32 @@ def create_spectrogram(audio, orig_sr):
     n_fft = 256
     hop_length = 128
 
-    eps = 1e-6
+    plot = False
 
     # Resample audio
     if orig_sr != sr:
         audio = librosa.resample(audio, orig_sr=orig_sr, target_sr=sr)
 
     # Trim/pad to fixed length
+    audio = trim_or_pad(audio, sr, fixed_length)
+
+    # Apply RMS Normalization
+    audio = rms_normalize(audio)
+
+    # Create Spectrogram, transpose to match expected input shape (time_steps, features)
+    S = np.abs(librosa.stft(y=audio, win_length=win_length, n_fft=n_fft, hop_length=hop_length)).T
+
+    # Normalize Spectrogram
+    S = librosa.util.normalize(S)
+    print(f"Shape: {S.shape}")
+
+    if plot:
+        plot_waveform(audio, sr, title="After RMS")
+        plot_spectrogram(S.T, sr, hop_length)
+
+    return S
+
+def trim_or_pad(audio, sr, fixed_length):
     target_len = int(sr * fixed_length)
     if len(audio) < target_len:
         pad_len = target_len - len(audio)
@@ -66,93 +101,69 @@ def create_spectrogram(audio, orig_sr):
         left = np.random.randint(0, pad_len + 1)
         right = pad_len - left
 
-        audio = np.pad(audio, (left, right), mode='constant')
+        audio = np.pad(audio, (left, right), mode='constant')  # pad
     else:
-        audio = audio[:target_len]
+        audio = audio[:target_len]  # trim
 
-    # Create Spectrogram, transpose to match expected input shape
-    S = np.abs(librosa.stft(y=audio,  win_length=win_length, n_fft=n_fft, hop_length=hop_length)).T
+    return audio
 
-    # Normalize Spectrogram?
-    S = librosa.util.normalize(S)
+def rms_normalize(audio):
+    rms = np.sqrt(np.mean(audio**2))
+    print(f"RMS before: {rms}")
 
-    # S = S.astype(np.float32)
-    # mean = S.mean()
-    # std = S.std() + eps
-    # S = (S - mean) / std
+    audio = audio / rms
 
-    print(S.shape)
+    rms = np.sqrt(np.mean(audio ** 2))
+    print(f"RMS after: {rms}")
+    return audio
 
-    return S
-
-# Create model
-def create_model():
+def create_model(N, sr, lr):
     if IP:
-        reservoir = IPReservoir(500, mu=0.0, sigma=0.1, sr=0.8, lr=0.9, activation="tanh", epochs=4)
+        reservoir = IPReservoir(N, sr=sr, lr=lr, mu=0.0, sigma=0.1, activation="tanh", epochs=4)
     else:
-        reservoir = Reservoir(500, lr=0.5, sr=0.9)
-    readout = Ridge(ridge=1e-7 )
+        reservoir = Reservoir(500, sr=sr, lr=lr)
+    readout = Ridge(ridge=1e-6, output_dim=11)
+
     return reservoir, readout
 
-def pretrain_model(reservoir, X):
-    stream = []
-    total = 0
-
-    while total < 1000:
-        spec = random.choice(X)
-        stream.append(spec)
-        total += spec.shape[0]
-    stream = np.concatenate(stream, axis=0)
-
-    reservoir.fit(stream, warmup=100)
-
-    # features = X[0].shape[1]
-    # T = 1000
-    #
-    # multi_d_narma = np.zeros((T, features))
-    #
-    # for i in range(features):
-    #     _, X_narma = narma(T)
-    #     multi_d_narma[:, i] = X_narma.ravel()
-    #
-    # _ = reservoir.fit(multi_d_narma, warmup=100)
-
-    # T = 1000
-    # _, X_narma = narma(T)
-    # _ = reservoir.fit(X_narma, warmup=100)
-    #
-    #
-    # # Set input matrix to correct shape for spectrograms
-    # reservoir.Win = np.random.uniform(-1, 1, (reservoir.units, 129))
-    # reservoir.input_dim = 129
-
-    return reservoir
-
 def train_model(X, Y, reservoir, readout):
-    # Run spectrogram through reservoir and collect final state
-    final_states = []
-    for x in X:
-        states = reservoir.run(x)                               # states = (samples, timesteps, neurons)
-        final_states.append(states[-1].reshape(1, -1))          # final_state = (samples, 1 (timestep), neurons)
+    X_list = []
+    Y_list = []
 
-    # Train readout on last layers of reservoirs
-    readout = readout.fit(final_states, Y)
+    total = len(X)
+    i = 1
 
-    return readout, final_states
+    for spec, labels in zip(X, Y):
+        print(f"{i} out of {total}")
 
-# Test model
+        states = reservoir.run(spec)
+
+        X_list.append(states)
+        Y_list.append(labels)
+
+        i += 1
+
+    X_all = np.vstack(X_list)  # shape = (sum_T, units)
+    Y_all = np.vstack(Y_list)  # shape = (sum_T, 10)
+
+    readout.fit(X_all, Y_all)
+
+    return readout
+
 def test_model(reservoir, readout, X_test, Y_test):
-    final_states_test = []
+    y_pred = []
 
-    for x in X_test:
-        states = reservoir.run(x)
-        final_states_test.append(states[-1].reshape(1, -1))
+    for spec in X_test:
+        states = reservoir.run(spec)
+        predictions = readout.run(states)                               # Get raw prediction per timestep
+        pred_per_timestep = np.argmax(predictions, axis=1)              # Get one-hot winner at each timestep
+        non_silence_preds = pred_per_timestep[pred_per_timestep != 10]  # Remove silence as category
+        final_pred = mode(non_silence_preds, keepdims=False).mode       # Get winning digit with majority voting
 
-    predictions = readout.run(final_states_test)
-    predictions = np.vstack(predictions)
+        y_pred.append(final_pred)
 
-    y_pred = np.argmax(predictions, axis=1)
-    y_true = np.argmax(np.vstack(Y_test), axis=1)
+    # Take the middle one-hot vectors as digits, as there is never silence there
+    y_true = np.array([np.argmax(Y[len(Y)//2]) for Y in Y_test])
 
     accuracy = accuracy_score(y_true, y_pred)
     print(f"Test accuracy: {accuracy:.3f}")
@@ -165,51 +176,32 @@ def create_training_data():
 
     return X, Y, X_train, X_test, Y_train, Y_test
 
-def heavyside(x):
-    return 1.0 if x >= 0 else 0.0
-
-def bounded(dist, x, mu, sigma, a, b):
-    num = dist.pdf(x, loc=mu, scale=sigma) * heavyside(x - a) * heavyside(b - x)
-    den = dist.cdf(b, loc=mu, scale=sigma) - dist.cdf(a, loc=mu, scale=sigma)
-    return num / den
-
-def plot_pdf(states, sigma):
-    fig, (ax1) = plt.subplots(1, 1, figsize=(10, 7))
-    ax1.set_xlim(-1.0, 1.0)
-    ax1.set_ylim(0, 16)
-    for s in range(states.shape[1]):
-        hist, edges = np.histogram(states[:, s], density=True, bins=200)
-        points = [np.mean([edges[i], edges[i + 1]]) for i in range(len(edges) - 1)]
-        ax1.scatter(points, hist, s=0.2, color="gray", alpha=0.25)
-    ax1.hist(
-        states.flatten(),
-        density=True,
-        bins=200,
-        histtype="step",
-        label="Global activation",
-        lw=3.0,
-    )
-    x = np.linspace(-1.0, 1.0, 200)
-    pdf = [bounded(norm, xi, 0.0, sigma, -1.0, 1.0) for xi in x]
-    ax1.plot(x, pdf, label="Target distribution", linestyle="--", lw=3.0)
-    ax1.set_xlabel("Reservoir activations")
-    ax1.set_ylabel("Probability density")
-    plt.legend()
-    plt.show()
-
 
 if __name__ == "__main__":
+    N = 500
+    sr = 0.8
+    lr = 1
+
     X, Y, X_train, X_test, Y_train, Y_test = create_training_data()
 
-    reservoir, readout = create_model()
+    reservoir, readout = create_model(N, sr, lr)
+
+    if TONOTOPIC:
+        W_in, W = create_tonotopic_mapping(N, sr)
+
+        reservoir.Win = W_in
+        reservoir.W = W
 
     if IP:
-        pretrain_model(reservoir, X)
+        apply_ip(reservoir, X)
 
         states = reservoir.run(X_test[0])
         states = np.vstack(states)
 
-        plot_pdf(states, 0.1)
+        plot_pdf(states, 0.1, title="IP on single band narma")
 
-    readout, final_states = train_model(X_train, Y_train, reservoir, readout)
+    readout = train_model(X_train, Y_train, reservoir, readout)
+
+    # plot_weights(reservoir.W)
+
     test_model(reservoir, readout, X_test, Y_test)
