@@ -42,9 +42,31 @@ def get_KL_divergence_and_entropy(states, sigma):
     pdf = np.array([bounded(norm, xi, 0.0, sigma, -1.0, 1.0) for xi in bin_centers])
 
     kl = entropy(hist, pdf)
-    ent = entropy(hist)
+    # ent = entropy(hist)
 
-    return kl, ent
+    return kl
+
+def get_KL_divergence_and_entropy_per_neuron(states, sigma):
+    kls = []
+    ents = []
+
+    for state in states:
+        x_min = state.min()
+        x_max = state.max()
+
+        # Estimate PDF with a histogram from all activations
+        hist, edges = np.histogram(state, density=True, bins=200, range=(x_min, x_max))
+
+        # Use bin centers, so estimated PDF and target PDF are aligned
+        bin_centers = 0.5 * (edges[:-1] + edges[1:])
+
+        # Target PDF
+        pdf = np.array([bounded(norm, xi, 0.0, sigma, -1.0, 1.0) for xi in bin_centers])
+
+        kls.append(entropy(hist, pdf))
+        # ents.append(entropy(hist))
+
+    return np.mean(kls)
 
 def plot_pdf(states, sigma):
     fig, (ax1) = plt.subplots(1, 1, figsize=(10, 7))
@@ -80,7 +102,7 @@ def create_model(N, lr, sr, sigma, epochs=4):
 
 if __name__ == "__main__":
     data_len = 1000
-    iterations = 1
+    iterations = 10
 
     results = []
 
@@ -124,29 +146,27 @@ if __name__ == "__main__":
                 print(set)
                 for i in range(iterations):
                     # Create model
-                    reservoir = create_model(600, 1, 0.8, sigma)
+                    reservoir = create_model(N, lr, sr, sigma)
 
-                    states_before = reservoir.run(X[100:])
                     # Apply intrinsic plasticity
                     _ = reservoir.fit(X, warmup=100)
+
                     # Get activations
                     states = reservoir.run(X[100:])
 
-                    plot_pdf(states_before, sigma)
-                    plot_pdf(states, sigma)
-
                     # Get the KL-divergence and entropy for neuron activations
-                    kl, ent = get_KL_divergence_and_entropy(states, sigma)
+                    kl = get_KL_divergence_and_entropy(states, sigma)
+                    avg_kl = get_KL_divergence_and_entropy_per_neuron(states, sigma)
+
+                    print(f"Total KL: {kl}")
+                    print(f"Average KL: {avg_kl}")
 
                     results.append({
-                        "N": N,
-                        "lr": lr,
-                        "sr": sr,
-                        "set_n": set,
                         "KL": kl,
-                        "entropy": ent,
+                        "avg_kl": avg_kl
                     })
                 set += 1
 
     df = pd.DataFrame(results)
-    df.to_csv(f"results_parameters_ip_{iterations}_iter_v2.csv", index=False)
+    # df.to_csv(f"results_parameters_ip_{iterations}_iter_v3.csv", index=False)
+    df.to_csv(f"avg_kl_vs_kl_per_neuron.csv", index=False)

@@ -14,8 +14,7 @@ import numpy as np
 import librosa
 import os
 
-# folder_path = "C:/Users/rikki/Documents/Uni/Thesis/Dataset/data/01"
-folder_path = "C:/Users/rikki/Uni/data/01"
+folder_path = "data/01"
 
 IP = True
 TONOTOPIC = False
@@ -28,7 +27,7 @@ def load_training_data(folder_path):
     silence_label = np.zeros(11)
     silence_label[10] = 1
 
-    test = True
+    test = False
 
     for filename in os.listdir(folder_path):
         if filename.lower().endswith(".wav"):
@@ -57,6 +56,49 @@ def load_training_data(folder_path):
 
     return samples, targets
 
+def create_mel_spectrogram(audio, orig_sr):
+    # Length to pad/trim to
+    fixed_length = 1
+
+    # Spectrogram parameters
+    sr = 8000
+    win_length = 512
+    n_fft = 512
+    hop_length = 128
+    n_mels = 128
+
+    plot = False
+
+    # Resample audio
+    if orig_sr != sr:
+        audio = librosa.resample(audio, orig_sr=orig_sr, target_sr=sr)
+
+    # Trim/pad to fixed length
+    audio = trim_or_pad(audio, sr, fixed_length)
+
+    # Apply RMS Normalization
+    audio = rms_normalize(audio)
+
+    # Create Spectrogram, convert to db and transpose to match expected input shape (time_steps, features)
+    S = librosa.feature.melspectrogram(
+        y=audio,
+        sr=sr,
+        n_fft=n_fft,
+        hop_length=hop_length,
+        win_length=win_length,
+        n_mels=n_mels
+    )
+    S = librosa.power_to_db(S, ref=np.max)
+    S = S.T
+
+    # print(f"Spectrogram shape: {S.shape}")
+
+    if plot:
+        plot_waveform(audio, sr, title="After RMS")
+        plot_spectrogram(S.T, sr, hop_length)
+
+    return S
+
 def create_spectrogram(audio, orig_sr):
     # Length to pad/trim to
     fixed_length = 1
@@ -79,12 +121,14 @@ def create_spectrogram(audio, orig_sr):
     # Apply RMS Normalization
     audio = rms_normalize(audio)
 
-    # Create Spectrogram, transpose to match expected input shape (time_steps, features)
-    S = np.abs(librosa.stft(y=audio, win_length=win_length, n_fft=n_fft, hop_length=hop_length)).T
+    # Create Spectrogram, conver to db and transpose to match expected input shape (time_steps, features)
+    S = np.abs(librosa.stft(y=audio, win_length=win_length, n_fft=n_fft, hop_length=hop_length))
+    S = librosa.amplitude_to_db(S, ref=np.max) + 80
+    S = S.T
 
     # Normalize Spectrogram
-    S = librosa.util.normalize(S)
-    print(f"Shape: {S.shape}")
+    # S = librosa.util.normalize(S)
+    print(f"Spectrogram shape: {S.shape}")
 
     if plot:
         plot_waveform(audio, sr, title="After RMS")
@@ -109,12 +153,8 @@ def trim_or_pad(audio, sr, fixed_length):
 
 def rms_normalize(audio):
     rms = np.sqrt(np.mean(audio**2))
-    print(f"RMS before: {rms}")
-
     audio = audio / rms
 
-    rms = np.sqrt(np.mean(audio ** 2))
-    print(f"RMS after: {rms}")
     return audio
 
 def create_model(N, sr, lr):
@@ -134,7 +174,7 @@ def train_model(X, Y, reservoir, readout):
     i = 1
 
     for spec, labels in zip(X, Y):
-        print(f"{i} out of {total}")
+        print(f"Training: {i} out of {total}")
 
         states = reservoir.run(spec)
 
@@ -180,7 +220,7 @@ def create_training_data():
 if __name__ == "__main__":
     N = 500
     sr = 0.8
-    lr = 1
+    lr = 0.97
 
     X, Y, X_train, X_test, Y_train, Y_test = create_training_data()
 
@@ -193,12 +233,24 @@ if __name__ == "__main__":
         reservoir.W = W
 
     if IP:
-        apply_ip(reservoir, X)
+        reservoir = apply_ip(reservoir, X)
 
+        # Set input matrix to correct shape for spectrograms
+        p = 0.1 # Probabilty of a connection existing
+        input_d = 129  # Should infer this, 129 for linear spectrogram 128 for mel
+        reservoir.Win = np.random.uniform(0.5, 1, (reservoir.units, input_d))
+
+        # Apply mask for sparsity
+        mask = np.random.rand(reservoir.units, input_d) < p
+        reservoir.Win *= mask
+
+        reservoir.input_dim = input_d
+
+        # Make a plot
         states = reservoir.run(X_test[0])
         states = np.vstack(states)
 
-        plot_pdf(states, 0.1, title="IP on single band narma")
+        plot_pdf(states, 0.1, title="Neuron activations")
 
     readout = train_model(X_train, Y_train, reservoir, readout)
 

@@ -54,7 +54,7 @@ def plot_waveform(audio, sr, title="Waveform"):
 def plot_spectrogram(S, sr, hop_length, title="Spectrogram"):
     plt.figure(figsize=(10, 4))
     librosa.display.specshow(
-        S,  # transpose if needed: librosa expects (freq_bins, frames)
+        S,
         sr=sr,
         hop_length=hop_length,
         x_axis='time',

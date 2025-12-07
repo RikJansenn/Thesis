@@ -3,38 +3,9 @@ from reservoirpy.datasets import narma
 import random
 
 def apply_ip(reservoir, X):
-    ### Using spectrograms ###
-    # stream = []
-    # total = 0
-    #
-    # while total < 1000:
-    #     spec = random.choice(X)
-    #     stream.append(spec)
-    #     total += spec.shape[0]
-    # stream = np.concatenate(stream, axis=0)
-    #
-    # reservoir.fit(stream, warmup=100)
-
-    ### Multi-band narma ###
-    # features = X[0].shape[1]
-    # T = 1000
-    #
-    # multi_d_narma = np.zeros((T, features))
-    #
-    # for i in range(features):
-    #     _, X_narma = narma(T)
-    #     multi_d_narma[:, i] = X_narma.ravel()
-    #
-    # _ = reservoir.fit(multi_d_narma, warmup=100)
-
-    ### Single band narma ###
     T = 1000
     _, X_narma = narma(T)
     _ = reservoir.fit(X_narma, warmup=100)
-
-    # Set input matrix to correct shape for spectrograms
-    reservoir.Win = np.random.uniform(-1, 1, (reservoir.units, 129))
-    reservoir.input_dim = 129
 
     return reservoir
 
