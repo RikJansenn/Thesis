@@ -6,6 +6,11 @@ from reservoirpy.nodes import Input
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from scipy.stats import norm, mode
+import matplotlib.pyplot as plt
+import matplotlib
+
+import pycochleagram.cochleagram as cgram
+from pycochleagram import utils
 
 from utils import plot_pdf, plot_waveform, plot_spectrogram, plot_weights
 from biological_constraints import apply_ip, create_tonotopic_mapping
@@ -14,10 +19,12 @@ import numpy as np
 import librosa
 import os
 
+matplotlib.use('tkagg')
 folder_path = "data/01"
 
 IP = True
 TONOTOPIC = False
+SPEC = "Cochlea"  # Choose "Cochlea", "Mel" or "Linear"
 
 def load_training_data(folder_path):
     samples = []
@@ -27,7 +34,7 @@ def load_training_data(folder_path):
     silence_label = np.zeros(11)
     silence_label[10] = 1
 
-    test = False
+    total = 0
 
     for filename in os.listdir(folder_path):
         if filename.lower().endswith(".wav"):
@@ -35,7 +42,13 @@ def load_training_data(folder_path):
             audio, sr = librosa.load(file_path, sr=None)
 
             # Create and store spectrogram
-            S = create_spectrogram(audio, sr)
+            if SPEC == "Mel":
+                S = create_mel_spectrogram(audio, sr)
+            elif SPEC == "Cochlea":
+                S = create_cochleagram(audio, sr, nonlinearity='db')
+            else:
+                S = create_spectrogram(audio, sr)
+
             samples.append(S)
 
             # Create one-hot vector representing digit
@@ -54,7 +67,32 @@ def load_training_data(folder_path):
             # Append final target array
             targets.append(labels_expanded)
 
+            total += 1
+
+            # if total >= 10:
+            #     break
+
     return samples, targets
+
+def create_cochleagram(audio, orig_sr, sample_factor=2, downsample=None, nonlinearity=None):
+    # Length to pad/trim to
+    fixed_length = 1
+    sr = 8000
+    n = 200
+
+    if orig_sr != sr:
+        audio = librosa.resample(audio, orig_sr=orig_sr, target_sr=sr)
+
+    # Trim/pad to fixed length
+    audio = trim_or_pad(audio, sr, fixed_length)
+
+    # Apply RMS Normalization
+    audio = rms_normalize(audio)
+
+    human_coch = cgram.human_cochleagram(audio, sr, n=n, sample_factor=sample_factor,
+                                         downsample=downsample, nonlinearity=nonlinearity, strict=False).T
+
+    return human_coch
 
 def create_mel_spectrogram(audio, orig_sr):
     # Length to pad/trim to
@@ -216,13 +254,26 @@ def create_training_data():
 
     return X, Y, X_train, X_test, Y_train, Y_test
 
+def create_input_weights(reservoir):
+    reservoir.Win = np.random.uniform(0.5, 1, (reservoir.units, input_d))
+
+    # Apply mask for sparsity
+    mask = np.random.rand(reservoir.units, input_d) < p
+    reservoir.Win *= mask
+    reservoir.input_dim = input_d
+
+    return reservoir.Win
+
 
 if __name__ == "__main__":
     N = 500
     sr = 0.8
-    lr = 0.97
+    lr = 1
+
+    p = 0.1 # Probabilty of a connection existing
 
     X, Y, X_train, X_test, Y_train, Y_test = create_training_data()
+    input_d = X[0].shape[1]
 
     reservoir, readout = create_model(N, sr, lr)
 
@@ -236,21 +287,17 @@ if __name__ == "__main__":
         reservoir = apply_ip(reservoir, X)
 
         # Set input matrix to correct shape for spectrograms
-        p = 0.1 # Probabilty of a connection existing
-        input_d = 129  # Should infer this, 129 for linear spectrogram 128 for mel
-        reservoir.Win = np.random.uniform(0.5, 1, (reservoir.units, input_d))
-
-        # Apply mask for sparsity
-        mask = np.random.rand(reservoir.units, input_d) < p
-        reservoir.Win *= mask
-
-        reservoir.input_dim = input_d
+        reservoir.Win = create_input_weights(reservoir)
 
         # Make a plot
         states = reservoir.run(X_test[0])
         states = np.vstack(states)
 
         plot_pdf(states, 0.1, title="Neuron activations")
+
+    # Reshape input matrix to have only positive values
+    if not IP and not TONOTOPIC:
+        reservoir.Win = create_input_weights(reservoir)
 
     readout = train_model(X_train, Y_train, reservoir, readout)
 

@@ -1,11 +1,21 @@
 import numpy as np
 from reservoirpy.datasets import narma
+from utils import plot_pdf
 import random
 
 def apply_ip(reservoir, X):
+    # TODO maak netjes
+    reservoir.Win = np.random.uniform(0.5, 1, (reservoir.units, 1))
+    # Apply mask for sparsity
+    mask = np.random.rand(reservoir.units, 1) < 0.1
+    reservoir.Win *= mask
+
     T = 1000
     _, X_narma = narma(T)
     _ = reservoir.fit(X_narma, warmup=100)
+
+    # states = reservoir.run(X_narma[100:])
+    # plot_pdf(states, 0.1, title="little test")
 
     return reservoir
 

@@ -17,28 +17,40 @@ def bounded(dist, x, mu, sigma, a, b):
 
 
 def plot_pdf(states, sigma, title):
-    fig, (ax1) = plt.subplots(1, 1, figsize=(10, 7))
+    if isinstance(states, np.ndarray):
+        states = [states[i, :] for i in range(states.shape[0])]
+
+    fig, ax1 = plt.subplots(1, 1, figsize=(10, 7))
     ax1.set_xlim(-1.0, 1.0)
     ax1.set_ylim(0, 16)
-    for s in range(states.shape[1]):
-        hist, edges = np.histogram(states[:, s], density=True, bins=200)
-        points = [np.mean([edges[i], edges[i + 1]]) for i in range(len(edges) - 1)]
-        ax1.scatter(points, hist, s=0.2, color="gray", alpha=0.25)
+
+    # Plot per-neuron PDFs
+    for neuron_states in states:
+        hist, edges = np.histogram(neuron_states, density=True, bins=200)
+        points = 0.5 * (edges[:-1] + edges[1:])
+        ax1.scatter(points, hist, s=0.2, alpha=0.25)
+
+    # Global activation distribution
+    all_states = np.concatenate(states)
     ax1.hist(
-        states.flatten(),
+        all_states,
         density=True,
         bins=200,
         histtype="step",
         label="Global activation",
         lw=3.0,
     )
+
+    # Target distribution
     x = np.linspace(-1.0, 1.0, 200)
     pdf = [bounded(norm, xi, 0.0, sigma, -1.0, 1.0) for xi in x]
     ax1.plot(x, pdf, label="Target distribution", linestyle="--", lw=3.0)
+
     ax1.set_xlabel("Reservoir activations")
     ax1.set_ylabel("Probability density")
-    plt.title(title)
-    plt.legend()
+    ax1.set_title(title)
+    ax1.legend()
+
     plt.savefig(f"plots/{title}")
     plt.show()
 

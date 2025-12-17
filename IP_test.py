@@ -14,6 +14,7 @@ import os
 from sklearn.metrics import mean_squared_error
 from scipy.stats import entropy
 import pandas as pd
+from utils import plot_pdf
 matplotlib.use('tkAgg')
 
 rpy.set_seed(42)
@@ -68,31 +69,6 @@ def get_KL_divergence_and_entropy_per_neuron(states, sigma):
 
     return np.mean(kls)
 
-def plot_pdf(states, sigma):
-    fig, (ax1) = plt.subplots(1, 1, figsize=(10, 7))
-    ax1.set_xlim(-1.0, 1.0)
-    ax1.set_ylim(0, 16)
-    for s in range(states.shape[1]):
-        hist, edges = np.histogram(states[:, s], density=True, bins=200)
-        points = [np.mean([edges[i], edges[i + 1]]) for i in range(len(edges) - 1)]
-        ax1.scatter(points, hist, s=0.2, color="gray", alpha=0.25)
-    ax1.hist(
-        states.flatten(),
-        density=True,
-        bins=200,
-        histtype="step",
-        label="Global activation",
-        lw=3.0,
-    )
-    x = np.linspace(-1.0, 1.0, 200)
-    pdf = [bounded(norm, xi, 0.0, sigma, -1.0, 1.0) for xi in x]
-    ax1.plot(x, pdf, label="Target distribution", linestyle="--", lw=3.0)
-    ax1.set_xlabel("Reservoir activations")
-    ax1.set_ylabel("Probability density")
-    plt.legend()
-    plt.savefig("Activations")
-    plt.show()
-
 
 # Create model
 def create_model(N, lr, sr, sigma, epochs=4):
@@ -102,7 +78,7 @@ def create_model(N, lr, sr, sigma, epochs=4):
 
 if __name__ == "__main__":
     data_len = 1000
-    iterations = 10
+    iterations = 1
 
     results = []
 
@@ -116,6 +92,21 @@ if __name__ == "__main__":
 
     # Create narma series
     _, X = narma(data_len)
+
+    # Create model
+    reservoir = create_model(500, 0.97, 0.8, sigma)
+    reservoir.Win = np.random.uniform(0.5, 1, (reservoir.units, 1))
+    # Apply mask for sparsity
+    mask = np.random.rand(reservoir.units, 1) < 0.1
+    reservoir.Win *= mask
+
+    # Apply intrinsic plasticity
+    _ = reservoir.fit(X, warmup=100)
+
+    # Get activations
+    states = reservoir.run(X[100:])
+
+    plot_pdf(states, 0.1, title="Little test")
 
     # Testing amount of epochs
     # for epochs in range(1, 13):
@@ -139,34 +130,31 @@ if __name__ == "__main__":
 
     set = 1
 
-    for N in N_values:
-        for lr in lr_values:
-            lr = round(lr, 2)
-            for sr in sr_values:
-                print(set)
-                for i in range(iterations):
-                    # Create model
-                    reservoir = create_model(N, lr, sr, sigma)
-
-                    # Apply intrinsic plasticity
-                    _ = reservoir.fit(X, warmup=100)
-
-                    # Get activations
-                    states = reservoir.run(X[100:])
-
-                    # Get the KL-divergence and entropy for neuron activations
-                    kl = get_KL_divergence_and_entropy(states, sigma)
-                    avg_kl = get_KL_divergence_and_entropy_per_neuron(states, sigma)
-
-                    print(f"Total KL: {kl}")
-                    print(f"Average KL: {avg_kl}")
-
-                    results.append({
-                        "KL": kl,
-                        "avg_kl": avg_kl
-                    })
-                set += 1
+    # for N in N_values:
+    #     for lr in lr_values:
+    #         lr = round(lr, 2)
+    #         for sr in sr_values:
+    #             print(set)
+    #             for i in range(iterations):
+    #                 # Create model
+    #                 reservoir = create_model(N, lr, sr, sigma)
+    #
+    #                 # Apply intrinsic plasticity
+    #                 _ = reservoir.fit(X, warmup=100)
+    #
+    #                 # Get activations
+    #                 states = reservoir.run(X[100:])
+    #
+    #                 # Get the KL-divergence and entropy for neuron activations
+    #                 kl = get_KL_divergence_and_entropy(states, sigma)
+    #
+    #                 print(f"Total KL: {kl}")
+    #
+    #                 results.append({
+    #                     "KL": kl,
+    #                 })
+    #             set += 1
 
     df = pd.DataFrame(results)
-    # df.to_csv(f"results_parameters_ip_{iterations}_iter_v3.csv", index=False)
-    df.to_csv(f"avg_kl_vs_kl_per_neuron.csv", index=False)
+    df.to_csv(f"results_parameters_ip_{iterations}_iter_v3.csv", index=False)
+    # df.to_csv(f"avg_kl_vs_kl_per_neuron.csv", index=False)
