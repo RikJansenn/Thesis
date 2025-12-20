@@ -24,7 +24,7 @@ folder_path = "data/01"
 
 IP = True
 TONOTOPIC = False
-SPEC = "Cochlea"  # Choose "Cochlea", "Mel" or "Linear"
+SPEC = "Linear"  # Choose "Cochlea", "Mel" or "Linear"
 
 def load_training_data(folder_path):
     samples = []
@@ -129,6 +129,7 @@ def create_mel_spectrogram(audio, orig_sr):
     S = librosa.power_to_db(S, ref=np.max)
     S = S.T
 
+    S = (S - S.min()) / (S.max() - S.min())
     # print(f"Spectrogram shape: {S.shape}")
 
     if plot:
@@ -154,19 +155,26 @@ def create_spectrogram(audio, orig_sr):
         audio = librosa.resample(audio, orig_sr=orig_sr, target_sr=sr)
 
     # Trim/pad to fixed length
-    audio = trim_or_pad(audio, sr, fixed_length)
+    # audio = trim_or_pad(audio, sr, fixed_length)
 
     # Apply RMS Normalization
     audio = rms_normalize(audio)
 
     # Create Spectrogram, conver to db and transpose to match expected input shape (time_steps, features)
     S = np.abs(librosa.stft(y=audio, win_length=win_length, n_fft=n_fft, hop_length=hop_length))
-    S = librosa.amplitude_to_db(S, ref=np.max) + 80
+    S = librosa.amplitude_to_db(S, ref=np.max)
     S = S.T
+
+    print(S.min())
 
     # Normalize Spectrogram
     # S = librosa.util.normalize(S)
+    S = (S - S.min()) / (S.max() - S.min())
     print(f"Spectrogram shape: {S.shape}")
+
+    # plt.hist(S.flatten(), bins=100)
+    # plt.title("Spec distribution")
+    # plt.show()
 
     if plot:
         plot_waveform(audio, sr, title="After RMS")
@@ -255,7 +263,8 @@ def create_training_data():
     return X, Y, X_train, X_test, Y_train, Y_test
 
 def create_input_weights(reservoir):
-    reservoir.Win = np.random.uniform(0.5, 1, (reservoir.units, input_d))
+    n = 1/128
+    reservoir.Win = np.random.uniform(n, n, (reservoir.units, input_d))
 
     # Apply mask for sparsity
     mask = np.random.rand(reservoir.units, input_d) < p
