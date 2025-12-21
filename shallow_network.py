@@ -155,7 +155,7 @@ def create_spectrogram(audio, orig_sr):
         audio = librosa.resample(audio, orig_sr=orig_sr, target_sr=sr)
 
     # Trim/pad to fixed length
-    # audio = trim_or_pad(audio, sr, fixed_length)
+    audio = trim_or_pad(audio, sr, fixed_length)
 
     # Apply RMS Normalization
     audio = rms_normalize(audio)
@@ -165,16 +165,9 @@ def create_spectrogram(audio, orig_sr):
     S = librosa.amplitude_to_db(S, ref=np.max)
     S = S.T
 
-    print(S.min())
-
     # Normalize Spectrogram
     # S = librosa.util.normalize(S)
     S = (S - S.min()) / (S.max() - S.min())
-    print(f"Spectrogram shape: {S.shape}")
-
-    # plt.hist(S.flatten(), bins=100)
-    # plt.title("Spec distribution")
-    # plt.show()
 
     if plot:
         plot_waveform(audio, sr, title="After RMS")
@@ -255,7 +248,9 @@ def test_model(reservoir, readout, X_test, Y_test):
     print(f"Test accuracy: {accuracy:.3f}")
 
 def create_training_data():
-    X, Y = load_training_data(folder_path)
+    data = np.load("dataset_train.npz")
+    X = data["specs"]
+    Y = data["targets"]
     X_train, X_test, Y_train, Y_test = train_test_split(
         X, Y, test_size=0.2, random_state=42
     )

@@ -8,9 +8,7 @@ from reservoirpy.datasets import mackey_glass
 from reservoirpy.datasets import narma
 import random
 from scipy.stats import gaussian_kde, norm
-
-data_len = 5000
-train_len = 4000
+from shallow_network import *
 
 hyperopt_config = {
     "exp": "hyperopt_ips",    # the experimentation name
@@ -70,11 +68,6 @@ def objective(dataset, config, *, input_scaling, input_connectivity, N, sr, lr, 
         readout = Ridge(ridge=ridge, input_dim=N)
 
         # Train your model and test your model.
-        # Apply IP
-        print("Applying IP...")
-        reservoir.fit(x_train, warmup=100)
-
-        # Train readout layer
         print("Training...")
         x_train = reservoir.run(x_train)
         readout.fit(x_train, y_train)
@@ -112,37 +105,41 @@ def objective(dataset, config, *, input_scaling, input_connectivity, N, sr, lr, 
         'entropy_std': np.std(entropy_values)
     }
 
-def kl_divergence_and_entropy_fast(observed_samples, mu, sigma, bins=200):
-    x_min = min(-3, observed_samples.min())
-    x_max = max(3, observed_samples.max())
-    p_hist, bin_edges = np.histogram(observed_samples, bins=bins, range=(x_min, x_max), density=True)
-    x = 0.5 * (bin_edges[:-1] + bin_edges[1:])  # bin centers
-    q = norm.pdf(x, loc=mu, scale=sigma)
-
-    # Normalize PDFs
-    dx = x[1] - x[0]
-    p_hist /= np.trapezoid(p_hist, x)
-    q /= np.trapezoid(q, x)
-
-    epsilon = 1e-12
-    entropy = -np.trapezoid(p_hist * np.log(p_hist + epsilon), x)
-    kl = np.trapezoid(p_hist * np.log((p_hist + epsilon) / (q + epsilon)), x)
-
-    return kl, entropy
-
-def create_data():
-    X, Y = narma(data_len)
-    X = X[-len(Y):]
-
-    X_train, Y_train = X[:train_len], Y[:train_len]
-    X_test, Y_test = X[train_len:], Y[train_len:]
-
-    return X_train, Y_train, X_test, Y_test
-
 if __name__ == "__main__":
-    X_train, Y_train, X_test, Y_test = create_data()
-    dataset = (X_train, X_test, Y_train, Y_test)
+    N = 500
+    sr = 0.8
+    lr = 1
 
+    p = 0.1  # Probabilty of a connection existing
+
+    X, Y, X_train, X_test, Y_train, Y_test = create_training_data()
+    input_d = X[0].shape[1]
+
+    reservoir, readout = create_model(N, sr, lr)
+    if TONOTOPIC:
+        W_in, W = create_tonotopic_mapping(N, sr)
+
+        reservoir.Win = W_in
+        reservoir.W = W
+
+    if IP:
+        reservoir = apply_ip(reservoir, X)
+
+        # Set input matrix to correct shape for spectrograms
+        reservoir.Win = create_input_weights(reservoir)
+
+        # Make a plot
+        states = reservoir.run(X_test[0])
+        states = np.vstack(states)
+
+        plot_pdf(states, 0.1, title="Neuron activations")
+
+    # Reshape input matrix to have only positive values
+    if not IP and not TONOTOPIC:
+        reservoir.Win = create_input_weights(reservoir)
+
+
+    dataset = (X_train, X_test, Y_train, Y_test)
     best = research(objective, dataset, f"{hyperopt_config['exp']}.config.json", ".")
 
     print(best)
