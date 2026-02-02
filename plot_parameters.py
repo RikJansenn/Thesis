@@ -31,7 +31,7 @@ def plot_parameters_against_measure(measure):
     axes[2].set_title(f"{measure} against leaky rate")
 
     plt.tight_layout()
-    plt.savefig(f"plots/{measure}_vs_parameters_all")
+    plt.savefig(f"plots_IP/{measure}_vs_parameters_all")
     plt.show()
 
 def plot_correlation(data, param1, param2, measure):
@@ -52,7 +52,7 @@ def plot_correlation(data, param1, param2, measure):
     plt.ylabel(param2)
     plt.title(f"{param1} vs {param2}, colored by {measure}")
     plt.colorbar(sc, label=measure)
-    plt.savefig(f"plots/{param1}_vs_{param2}_all")
+    plt.savefig(f"plots_IP/{param1}_vs_{param2}_all")
     plt.show()
 
 def get_parameters_under_threshold(threshold):
@@ -113,8 +113,8 @@ def threeD_plot(data, thresh):
 
 
 if __name__ == "__main__":
-    data = pd.read_csv("csvs/results_parameters_ip_100_iter_v2.csv")
-    plot = False
+    data = pd.read_csv("csvs/results_parameters_ip_specs_100_iter.csv")
+    plot = True
     convert = False
 
 

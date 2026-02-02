@@ -6,7 +6,7 @@ matplotlib.use('tkagg')
 total_kl = []
 avg_kl = []
 
-with open("kls.txt", "r") as f:
+with open("csvs/kls.txt", "r") as f:
     for line in f:
         line = line.strip()
 

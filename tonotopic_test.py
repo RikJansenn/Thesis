@@ -97,7 +97,7 @@ def create_tonotopic_mapping():
     ### Create reservoir weight matrix ###
     # First create normal sparse random weights
     mask = np.random.randn(N_RESERVOIR, N_RESERVOIR) < connectivity
-    W = np.random.uniform(-1, 1, (N_RESERVOIR, N_RESERVOIR)) * mask
+    W = np.random.uniform(0, 1, (N_RESERVOIR, N_RESERVOIR)) * mask
 
     # Apply a gaussian weighing based on distance
     distance = np.abs(neuron_positions[:, None] - neuron_positions[None, :])  # Compute distance between each neuron
