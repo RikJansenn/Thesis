@@ -1,8 +1,22 @@
+import random
+import matplotlib.pyplot as plt
+from scipy.stats import gaussian_kde
+import matplotlib
 import reservoirpy as rpy
-from reservoirpy.nodes import IPReservoir
-from scipy.stats import norm
+from reservoirpy.nodes import Reservoir, IPReservoir, Ridge
+from reservoirpy.datasets import narma
+from scipy.stats import pearsonr
+from scipy.stats import entropy, norm
 import numpy as np
+import matplotlib
+import librosa
+import os
+from sklearn.metrics import mean_squared_error
 from scipy.stats import entropy
+import pandas as pd
+from utils import plot_pdf
+from biological_constraints import apply_ip_specs
+matplotlib.use('tkAgg')
 
 rpy.set_seed(42)
 
@@ -58,8 +72,8 @@ def get_KL_divergence_and_entropy_per_neuron(states, sigma):
 
 
 # Create model
-def create_model(N, lr, sr, sigma, epochs=4):
-    reservoir = IPReservoir(N, sr=sr, lr=lr, mu=0.0, sigma=sigma, activation="tanh", epochs=epochs, learning_rate=1e-4)
+def create_model(N, lr, sr, sigma, epochs=10):
+    reservoir = IPReservoir(N, sr=sr, lr=lr, mu=0.0, sigma=sigma, activation="tanh", epochs=epochs, learning_rate=2e-4)
 
     return reservoir
 
@@ -70,10 +84,10 @@ if __name__ == "__main__":
     results = []
 
     # Parameters to test
-    N_values = np.arange(600, 1201, 100)        # 7
-    lr_values = np.arange(0.85, 1.01, 0.03)     # 6
-    sr_values = np.arange(0.8, 1.21, 0.1)       # 5
-    sigma = 0.1
+    N_values = [600, 700, 800, 900, 1000, 1100, 1200]       # 7
+    lr_values = [0.85, 0.88, 0.91, 0.94, 0.97, 1]    # 6
+    sr_values = [0.8, 0.9, 1, 1.1, 1.2]      # 5
+    sigma = [0.1, 0.2, 0.3]
 
     print(lr_values)
 

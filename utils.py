@@ -3,6 +3,7 @@ from scipy.stats import norm
 import matplotlib.pyplot as plt
 import matplotlib
 import librosa
+from scipy.stats import entropy
 
 matplotlib.use('tkagg')
 
@@ -21,7 +22,7 @@ def plot_pdf(states, sigma, title):
     ax1.set_xlim(-1.0, 1.0)
     ax1.set_ylim(0, 16)
     for s in range(states.shape[1]):
-        hist, edges = np.histogram(states[:, s], density=True, bins=200)
+        hist, edges = np.histogram(states[:, s], density=True, bins=50)
         points = [np.mean([edges[i], edges[i + 1]]) for i in range(len(edges) - 1)]
         ax1.scatter(points, hist, s=0.2, color="gray", alpha=0.25)
     ax1.hist(
@@ -72,4 +73,22 @@ def plot_weights(W):
     plt.title('Neuron Connection Weights (-1 to 1)')
     plt.show()
 
+def get_KL_divergence_and_entropy(states, sigma):
+    # Get all state activations and their min and max
+    all_activations = states.flatten()
+    x_min = all_activations.min()
+    x_max = all_activations.max()
 
+    # Estimate PDF with a histogram from all activations
+    hist, edges = np.histogram(all_activations, density=True, bins=200, range=(x_min, x_max))
+
+    # Use bin centers, so estimated PDF and target PDF are aligned
+    bin_centers = 0.5 * (edges[:-1] + edges[1:])
+
+    # Target PDF
+    pdf = np.array([bounded(norm, xi, 0.0, sigma, -1.0, 1.0) for xi in bin_centers])
+
+    kl = entropy(hist, pdf)
+    ent = entropy(hist)
+
+    return kl, ent

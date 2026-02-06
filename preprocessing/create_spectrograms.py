@@ -3,8 +3,13 @@ import numpy as np
 import librosa
 import os
 import csv
+import matplotlib
+import matplotlib.pyplot as plt
+
+matplotlib.use('tkagg')
 
 folder_path = "../preprocessed_data"
+
 
 def load_training_data(folder_path):
     samples = []
@@ -37,6 +42,30 @@ def load_training_data(folder_path):
                 S_mel = create_mel_spectrogram(audio, sr)
                 S_coch = create_cochleagram(audio, sr)
 
+                ###########################################
+                fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
+
+                # Standard spectrogram
+                im0 = axes[0].imshow(S.T, aspect='auto', origin='lower', cmap="magma")
+                axes[0].set_title("Spectrogram")
+                fig.colorbar(im0, ax=axes[0])
+
+                # Mel spectrogram
+                im1 = axes[1].imshow(S_mel.T, aspect='auto', origin='lower', cmap="magma")
+                axes[1].set_title("Mel Spectrogram")
+                fig.colorbar(im1, ax=axes[1])
+
+                # Cochleagram
+                im2 = axes[2].imshow(S_coch.T, aspect='auto', origin='lower', cmap="magma")
+                axes[2].set_title("Cochleagram")
+                fig.colorbar(im2, ax=axes[2])
+
+                axes[2].set_xlabel("Time frames")
+
+                plt.tight_layout()
+                plt.show()
+                ###########################################
+
                 samples.append(S)
                 mel_samples.append(S_mel)
                 cochlea_samples.append(S_coch)
@@ -55,6 +84,7 @@ def load_training_data(folder_path):
                 #     break
 
     return samples, mel_samples, cochlea_samples, targets_linear, targets_mel, targets_cochlea
+
 
 def create_label(S, filename):
     # Create label for silence
@@ -75,6 +105,8 @@ def create_label(S, filename):
             labels_expanded[t] = label
 
     return labels_expanded
+
+
 def create_spectrogram(audio, sr):
     # Length to pad/trim to
     fixed_length = 1
@@ -95,10 +127,10 @@ def create_spectrogram(audio, sr):
     # Normalize Spectrogram
     S = (S - S.min()) / (S.max() - S.min())
 
-
     print(f"Linear shape: {S.shape}")
 
     return S
+
 
 def create_mel_spectrogram(audio, sr):
     # Length to pad/trim to
@@ -131,6 +163,7 @@ def create_mel_spectrogram(audio, sr):
 
     return S
 
+
 def create_cochleagram(audio, sr, sample_factor=2, nonlinearity="db"):
     # Length to pad/trim to
     fixed_length = 1
@@ -140,22 +173,12 @@ def create_cochleagram(audio, sr, sample_factor=2, nonlinearity="db"):
     audio = trim_or_pad(audio, sr, fixed_length)
 
     S = cgram.human_cochleagram(audio,
-                                         sr,
-                                         n=n,
-                                         # low_lim=50,
-                                         # high_lim=3800,
-                                         downsample=downsampler,
-                                         sample_factor=sample_factor,
-                                         nonlinearity=nonlinearity,
-                                         strict=False).T
-
-    # plt.subplot(222)
-    # plt.title('Cochleagram with poly downsampling')
-    # plt.ylabel('filter #')
-    # plt.xlabel('time')
-    # cu.cochshow(np.flipud(human_coch.T), interact=False)
-    # plt.gca().invert_yaxis()
-    # plt.show()
+                                sr,
+                                n=n,
+                                downsample=downsampler,
+                                sample_factor=sample_factor,
+                                nonlinearity=nonlinearity,
+                                strict=False).T
 
     # Normalize Spectrogram
     S = (S - S.min()) / (S.max() - S.min())
@@ -164,6 +187,7 @@ def create_cochleagram(audio, sr, sample_factor=2, nonlinearity="db"):
 
     return S
 
+
 def downsampler(envs):
     return cgram.apply_envelope_downsample(
         envs,
@@ -171,6 +195,7 @@ def downsampler(envs):
         audio_sr=8000,
         env_sr=64  # Amount of timesteps
     )
+
 
 def trim_or_pad(audio, sr, fixed_length):
     target_len = int(sr * fixed_length)

@@ -3,9 +3,6 @@ from reservoirpy.datasets import narma
 import random
 
 def apply_ip(reservoir, input_d):
-    n = 1 / input_d
-    # reservoir.Win = np.random.uniform(n, n, (reservoir.units, 1))
-
     reservoir.Win = np.random.uniform(0.5, 1, (reservoir.units, 1))
 
     mask = np.random.rand(reservoir.units, 1) < 0.1
@@ -17,8 +14,28 @@ def apply_ip(reservoir, input_d):
 
     return reservoir
 
-def apply_ip_specs(reservoir, X):
+def apply_ip_specs(reservoir, input_d, p, X):
+    reservoir.Win = np.random.uniform(1, 1, (reservoir.units, input_d))
+    mask = np.random.rand(reservoir.units, input_d) < p
+    # reservoir.Win *= mask
+
     _ = reservoir.fit(X, warmup=100)
+
+    return reservoir
+
+def apply_IP_multiband(reservoir, input_d, p=0.1):
+    # reservoir.Win = np.random.uniform(1, 1, (reservoir.units, input_d))
+    # mask = np.random.rand(reservoir.units, input_d) < p
+    # reservoir.Win *= mask
+
+    T = 1000
+
+    multi_d_narma = np.zeros((T, input_d))
+    for i in range(input_d):
+        _, X_narma = narma(T)
+        multi_d_narma[:, i] = X_narma.ravel()
+
+    _ = reservoir.fit(multi_d_narma, warmup=100)
 
     return reservoir
 
