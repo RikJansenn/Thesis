@@ -1,11 +1,11 @@
 import reservoirpy as rpy
-from reservoirpy.nodes import Reservoir, IPReservoir, Ridge
-from scipy.stats import entropy, norm
+from reservoirpy.nodes import IPReservoir
+from scipy.stats import norm
 import numpy as np
 import matplotlib
 from scipy.stats import entropy
 
-from biological_constraints import apply_ip, apply_ip_specs, apply_IP_multiband
+from biological_constraints import apply_ip
 # from my_biological_constraints import apply_ip
 
 from utils import plot_pdf
@@ -88,11 +88,11 @@ def create_spec_weights(reservoir, input_d, p):
 if __name__ == "__main__":
     data_len = 1000
 
-    N = 500
+    N = 1200
     sr = 0.8
-    lr = 1
+    lr = 0.8
     p = 0.1
-    learn_rates = [1e-5]
+    learn_rates = [3e-4]
     mean_kls = []
 
     for learn_rate in learn_rates:
@@ -102,10 +102,10 @@ if __name__ == "__main__":
         X = create_training_data()  # Should return 10 specs for each digit
         input_d = X.shape[1]
 
-        reservoir = apply_ip_specs(reservoir, input_d, p, X)
-        # reservoir = apply_ip(reservoir, X)
-        apply_IP_multiband(reservoir, input_d)
-        reservoir.Win = create_spec_weights(reservoir, input_d, p)
+        # reservoir = apply_ip_specs(reservoir, input_d, p, X)
+        reservoir = apply_ip(reservoir, X)
+        #apply_IP_multiband(reservoir, input_d)
+        reservoir.Win = create_input_weights(reservoir, input_d, p)
 
         digit = 0
         i = 0
@@ -119,9 +119,10 @@ if __name__ == "__main__":
             print(kl)
             kls.append(kl)
 
+            plot_pdf(states, 0.1, f"PDF for digit {digit}, number {i + 1}")
+
             i += 1
             if i % 10 == 0:
-                # plot_pdf(states, 0.1, f"PDF for digit {digit}, number {i + 1}")
                 digit += 1
 
             reservoir.reset()

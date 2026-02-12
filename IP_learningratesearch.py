@@ -1,15 +1,13 @@
 import reservoirpy as rpy
-from reservoirpy.nodes import Reservoir, IPReservoir, Ridge
-from scipy.stats import entropy, norm
+from reservoirpy.nodes import IPReservoir
+from scipy.stats import norm
 import numpy as np
 import matplotlib
 from scipy.stats import entropy
 import pandas as pd
 
-from biological_constraints import apply_ip, apply_ip_specs, apply_IP_multiband
+from biological_constraints import apply_IP_multiband
 # from my_biological_constraints import apply_ip
-
-from utils import plot_pdf
 
 matplotlib.use('tkAgg')
 

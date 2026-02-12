@@ -113,7 +113,7 @@ def threeD_plot(data, thresh):
 
 
 if __name__ == "__main__":
-    data = pd.read_csv("downloads/results_parameter_sweep_sigma")
+    data = pd.read_csv("downloads/results_parameter_sweep")
     plot = True
     convert = False
 
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     # Convert the dataframe into the dataframe version with just the mean and std measures per parameter combo
     # since that is what this code was written for
     if convert:
-        param_cols = ["N", "sr", "lr", "sigma"]
+        param_cols = ["N", "sr", "lr"]
         data = (
             data
             .groupby(param_cols)

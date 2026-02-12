@@ -2,11 +2,12 @@ import numpy as np
 from reservoirpy.datasets import narma
 import random
 
-def apply_ip(reservoir, input_d):
+def apply_ip(reservoir, input_d, p):
     reservoir.Win = np.random.uniform(0.5, 1, (reservoir.units, 1))
 
-    mask = np.random.rand(reservoir.units, 1) < 0.1
+    mask = np.random.rand(reservoir.units, 1) < p
     reservoir.Win *= mask
+
 
     T = 1000
     _, X_narma = narma(T)
