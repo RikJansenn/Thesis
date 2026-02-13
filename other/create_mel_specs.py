@@ -3,11 +3,11 @@ import librosa
 import os
 import csv
 
-folder_path = "preprocessed_data"
+folder_path = "../preprocessed_data"
 
 def load_training_data(folder_path):
-    samples = []
-    targets = []
+    mel_samples = []
+    targets_mel = []
 
     with open("used_files_for_IP.csv", "r", newline="") as f:
         reader = csv.reader(f)
@@ -25,22 +25,23 @@ def load_training_data(folder_path):
 
                 print(file_path)
                 audio, sr = librosa.load(file_path, sr=None)
+                print(sr)
 
                 # Create and store spectrogram
-                S = create_linear_spectrogram(audio, sr)
+                S_mel = create_mel_spectrogram(audio, sr)
 
-                samples.append(S)
+                mel_samples.append(S_mel)
 
                 # Create lables per timestep for each spectrogram
-                label = create_label(S, filename)
-                targets.append(label)
+                label_mel = create_label(S_mel, filename)
+                targets_mel.append(label_mel)
 
                 total += 1
 
                 # if total >= 10:
                 #     break
 
-    return samples, targets
+    return mel_samples, targets_mel
 
 def create_label(S, filename):
     # Create label for silence
@@ -62,27 +63,34 @@ def create_label(S, filename):
 
     return labels_expanded
 
-def create_linear_spectrogram(audio, sr):
+def create_mel_spectrogram(audio, sr):
     # Length to pad/trim to
     fixed_length = 1
 
     # Spectrogram parameters
-    win_length = 256
     n_fft = 256
+    win_length = 256
     hop_length = 128
+    n_mels = 40
 
     # Trim/pad to fixed length
     audio = trim_or_pad(audio, sr, fixed_length)
 
-    # Create Spectrogram, conver to db and transpose to match expected input shape (time_steps, features)
-    S = np.abs(librosa.stft(y=audio, win_length=win_length, n_fft=n_fft, hop_length=hop_length))
-    S = librosa.amplitude_to_db(S, ref=np.max)
+    # Create Spectrogram, convert to db and transpose to match expected input shape (time_steps, features)
+    S = librosa.feature.melspectrogram(
+        y=audio,
+        sr=sr,
+        n_fft=n_fft,
+        hop_length=hop_length,
+        win_length=win_length,
+        n_mels=n_mels,
+    )
+    S = librosa.power_to_db(S, ref=np.max)
     S = S.T
 
     # Normalize Spectrogram
     S = (S - S.min()) / (S.max() - S.min())
-
-    print(f"Linear shape: {S.shape}")
+    print(f"Mel shape: {S.shape}")
 
     return S
 
@@ -103,6 +111,6 @@ def trim_or_pad(audio, sr, fixed_length):
 
 
 if __name__ == "__main__":
-    specs, targets = load_training_data(folder_path)
+    melspecs, targets_mel = load_training_data(folder_path)
 
-    np.savez("datasets/specs.npz", specs=specs, targets=targets)
+    np.savez("../datasets/mel_specs_63x40(128).npz", melspecs=melspecs, targets_mel=targets_mel)

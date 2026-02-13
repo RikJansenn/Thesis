@@ -66,8 +66,8 @@ def parameter_sweep(N_values, lr_values, sr_values, sigmas, iterations, X_train,
     return results
 
 def create_training_data(spec="Mel"):
-    data_train = np.load("datasets/dataset_train.npz")
-    data_test = np.load("datasets/dataset_param_search.npz")
+    data_train = np.load("../datasets/dataset_train.npz")
+    data_test = np.load("../datasets/dataset_param_search.npz")
     if spec == "Linear":
         X_train = data_train["specs"]
         Y_train = data_train["targets_linear"]

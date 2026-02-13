@@ -1,7 +1,7 @@
 import numpy as np
 
 INPUT_FILE = "../datasets/dataset_train_all.npz"
-SUBSET_FILE = "../../datasets/IP_testset.npz"
+SUBSET_FILE = "../datasets/IP_testset.npz"
 REMAINING_FILE = "../datasets/dataset_train_remaining.npz"
 
 SILENCE_LABEL = 10

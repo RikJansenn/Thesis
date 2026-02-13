@@ -1,7 +1,7 @@
 import pandas as pd
 
 # Load your file
-df = pd.read_csv("csvs/ridge_cv_results_full.csv")
+df = pd.read_csv("../csvs/ridge_cv_results_full.csv")
 
 df['accuracy'] = df['accuracy'] - 0.081
 

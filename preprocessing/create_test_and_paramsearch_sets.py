@@ -32,11 +32,11 @@ targets_cochlea_train, targets_cochlea_param = train_test_split(
 )
 
 # Save all sets
-np.savez("../../datasets/dataset_train.npz", specs=specs_train, melspecs=melspecs_train,
+np.savez("../datasets/dataset_train.npz", specs=specs_train, melspecs=melspecs_train,
          cochs=cochs_train, targets_linear=targets_linear_train, targets_mel=targets_mel_train, targets_cochlea=targets_cochlea_train)
 
-np.savez("../../datasets/dataset_testset.npz", specs=specs_test, melspecs=melspecs_test,
+np.savez("../datasets/dataset_testset.npz", specs=specs_test, melspecs=melspecs_test,
          cochs=cochs_test, targets_linear=targets_linear_test, targets_mel=targets_mel_test, targets_cochlea=targets_cochlea_test)
 
-np.savez("../../datasets/dataset_param_search.npz", specs=specs_param, melspecs=melspecs_param,
+np.savez("../datasets/dataset_param_search.npz", specs=specs_param, melspecs=melspecs_param,
          cochs=cochs_param, targets_linear=targets_linear_param, targets_mel=targets_mel_param, targets_cochlea=targets_cochlea_param)

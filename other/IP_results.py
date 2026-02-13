@@ -4,10 +4,11 @@ from scipy.stats import norm
 import numpy as np
 import matplotlib
 from scipy.stats import entropy
-import pandas as pd
 
-from biological_constraints import apply_IP_multiband
+from biological_constraints import apply_ip
 # from my_biological_constraints import apply_ip
+
+from utils import plot_pdf
 
 matplotlib.use('tkAgg')
 
@@ -53,12 +54,12 @@ def create_model(N, lr, sr, learn_rate):
 
 
 def create_training_data():
-    data = np.load("datasets/dataset_IP.npy")
+    data = np.load("../datasets/dataset_IP.npy")
 
     return data
 
 def create_test_data():
-    data = np.load("datasets/dataset_param_search.npz")
+    data = np.load("../datasets/IP_testset.npz")
     X_test = data["melspecs"]
 
     return X_test
@@ -87,38 +88,38 @@ def create_spec_weights(reservoir, input_d, p):
 if __name__ == "__main__":
     data_len = 1000
 
-    N = 500
-    sr = 0.95
-    lr = 1
+    N = 1200
+    sr = 0.8
+    lr = 0.8
     p = 0.1
-
-    learn_rates = [9e-6, 1e-5, 2e-5, 3e-5, 4e-5, 5e-5, 6e-5, 7e-5, 8e-5, 9e-5, 1e-4, 2e-4, 3e-4, 4e-4, 5e-4, 6e-4]
+    learn_rates = [3e-4]
+    mean_kls = []
 
     for learn_rate in learn_rates:
         # Create model
         reservoir = create_model(N, sr, lr, learn_rate)
 
-        X = create_training_data()
+        X = create_training_data()  # Should return 10 specs for each digit
         input_d = X.shape[1]
 
         # reservoir = apply_ip_specs(reservoir, input_d, p, X)
-        # reservoir = apply_ip(reservoir, X)
-        reservoir = apply_IP_multiband(reservoir, input_d)
-        reservoir.Win = create_spec_weights(reservoir, input_d, p)
+        reservoir = apply_ip(reservoir, X)
+        #apply_IP_multiband(reservoir, input_d)
+        reservoir.Win = create_input_weights(reservoir, input_d, p)
 
         digit = 0
         i = 0
 
-        X_test = create_test_data()[:300]
+        X_test = create_test_data()
         kls = []
-        results = []
-
         # For each spec, plot the pdf and get KL divergence/entropy
         for spec in X_test:
             states = reservoir.run(spec)
             kl = get_KL_divergence_and_entropy(states, 0.1)
+            print(kl)
             kls.append(kl)
-            # plot_pdf(states, 0.1, f"PDF for digit {digit}, number {i+1}")
+
+            plot_pdf(states, 0.1, f"PDF for digit {digit}, number {i + 1}")
 
             i += 1
             if i % 10 == 0:
@@ -128,11 +129,4 @@ if __name__ == "__main__":
 
         kl_mean = np.mean(kls)
         print(f"{learn_rate} mean: {kl_mean}")
-
-        results.append({
-            "learn_rate": learn_rate,
-            "KL_mean": kl_mean,
-        })
-
-        df = pd.DataFrame(results)
-        df.to_csv("learning_rate_results/trainmultinarma_testspecs_sparsity.csv", index=False)
+        mean_kls.append(kl_mean)

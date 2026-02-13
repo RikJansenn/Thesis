@@ -113,7 +113,7 @@ def threeD_plot(data, thresh):
 
 
 if __name__ == "__main__":
-    data = pd.read_csv("downloads/results_parameter_sweep_sigma")
+    data = pd.read_csv("../downloads/results_parameter_sweep_sigma")
     plot = True
     convert = False
 

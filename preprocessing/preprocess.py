@@ -24,7 +24,7 @@ def preprocess(folder_path, sr):
                 audio = rms_normalize(audio)
 
                 rel_path = os.path.relpath(root_dir, folder_path)
-                output_dir = os.path.join("../../preprocessed_data", rel_path)
+                output_dir = os.path.join("../preprocessed_data", rel_path)
                 os.makedirs(output_dir, exist_ok=True)
 
                 output_path = os.path.join(output_dir, filename)

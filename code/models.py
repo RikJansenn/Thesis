@@ -54,7 +54,7 @@ class ShallowNetwork:
         # Make parameter search test split
         # Run crossvalidation
 
-        states_list = self.reservoir.run(X, workers=self.workers)
+        states_list = self.reservoir.run(X, workers=-1)
 
         self.readout.fit(states_list, y=Y, workers=self.workers)
 

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 matplotlib.use('tkagg')
 
-folder_path = "../../preprocessed_data"
+folder_path = "../preprocessed_data"
 
 
 def load_training_data(folder_path):
@@ -20,19 +20,12 @@ def load_training_data(folder_path):
     targets_mel = []
     targets_cochlea = []
 
-    with open("used_files_for_IP.csv", "r", newline="") as f:
-        reader = csv.reader(f)
-        files_used_for_IP = [row[0] for row in reader]
-
     total = 0
 
     for root_dir, dirs, files in os.walk(folder_path):
         for filename in files:
             if filename.lower().endswith(".wav"):
                 file_path = os.path.join(root_dir, filename)
-
-                if file_path in files_used_for_IP:
-                    continue
 
                 print(file_path)
                 audio, sr = librosa.load(file_path, sr=None)
@@ -41,30 +34,6 @@ def load_training_data(folder_path):
                 S = create_spectrogram(audio, sr)
                 S_mel = create_mel_spectrogram(audio, sr)
                 S_coch = create_cochleagram(audio, sr)
-
-                ###########################################
-                fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
-
-                # Standard spectrogram
-                im0 = axes[0].imshow(S.T, aspect='auto', origin='lower', cmap="magma")
-                axes[0].set_title("Spectrogram")
-                fig.colorbar(im0, ax=axes[0])
-
-                # Mel spectrogram
-                im1 = axes[1].imshow(S_mel.T, aspect='auto', origin='lower', cmap="magma")
-                axes[1].set_title("Mel Spectrogram")
-                fig.colorbar(im1, ax=axes[1])
-
-                # Cochleagram
-                im2 = axes[2].imshow(S_coch.T, aspect='auto', origin='lower', cmap="magma")
-                axes[2].set_title("Cochleagram")
-                fig.colorbar(im2, ax=axes[2])
-
-                axes[2].set_xlabel("Time frames")
-
-                plt.tight_layout()
-                plt.show()
-                ###########################################
 
                 samples.append(S)
                 mel_samples.append(S_mel)

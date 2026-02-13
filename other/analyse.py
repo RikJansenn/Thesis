@@ -6,7 +6,7 @@ import statsmodels.api as sm
 import numpy as np
 matplotlib.use('tkagg')
 
-df = pd.read_csv("downloads/results_parameter_sweep")
+df = pd.read_csv("../downloads/results_parameter_sweep")
 df.head()
 
 group_cols = ["set", "N", "sr", "lr", "sigma"]

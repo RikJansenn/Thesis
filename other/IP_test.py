@@ -78,8 +78,8 @@ if __name__ == "__main__":
     print(lr_values)
 
     # Testing amount of epochs
-    X = np.load("datasets/dataset_IP.npy")
-    X_test = np.load("datasets/IP_testset.npz")["melspecs"]
+    X = np.load("../datasets/dataset_IP.npy")
+    X_test = np.load("../datasets/IP_testset.npz")["melspecs"]
 
     for epochs in range(1, 8):
         kls = []

@@ -1,6 +1,6 @@
 import numpy as np
 
-data = np.load("datasets/dataset_train.npz", allow_pickle=True)
+data = np.load("../datasets/dataset_train.npz", allow_pickle=True)
 
 print("Keys:", data.files)
 

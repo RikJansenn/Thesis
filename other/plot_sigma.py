@@ -94,8 +94,8 @@ def plot_correlation(data, param1, param2, measure):
 
 
 if __name__ == "__main__":
-    data = pd.read_csv("downloads/results_parameter_sweep")
-    data_sigma = pd.read_csv("downloads/results_parameter_sweep_sigma2")
+    data = pd.read_csv("../downloads/results_parameter_sweep")
+    data_sigma = pd.read_csv("../downloads/results_parameter_sweep_sigma2")
 
     data = data[(data["N"] == 1200) & (data["sr"] == 0.8) & (data["lr"] == 0.94)]
     data = pd.concat([data, data_sigma], ignore_index=True)

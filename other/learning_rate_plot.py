@@ -5,7 +5,7 @@ import librosa
 
 matplotlib.use('tkagg')
 
-data = np.load("datasets/IP_testset.npz")
+data = np.load("../datasets/IP_testset.npz")
 S = data["specs"][0]
 S_mel = data["melspecs"][0]
 S_coch = data["cochs"][0]
